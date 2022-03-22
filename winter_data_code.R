@@ -45,6 +45,9 @@ dgSoilMoist$month <- as.numeric(format(dgSoilMoist$dateF,"%m"))
 
 #### End Data Read in ####
 
+
+#### Create Winter Data Tables ####
+
 # Stores all Air Temperature data from Oct 1 to April 30
 winterAirTemp <- rbind(subset(dgAirTemp, dgAirTemp$month > "9"), subset(dgAirTemp, dgAirTemp$month < "5"))
 
@@ -60,3 +63,5 @@ winterSoilTemp <- rbind(subset(dgSoilTemp, dgSoilTemp$month > "9"), subset(dgSoi
 
 # Stores all Soil Moisture data from Oct 1 to April 30
 winterSoilMoist <- rbind(subset(dgSoilMoist, dgSoilMoist$month > "9"), subset(dgSoilMoist, dgSoilMoist$month < "5"))
+
+#### End Create Winter Data Tables ####
