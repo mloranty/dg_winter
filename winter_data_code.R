@@ -34,6 +34,13 @@ dgSoilTemp <- read.csv("C:\\Users\\brian\\OneDrive\\Documents\\GEOG331\\Project 
 dgSoilTemp$dateF <- as.Date(dgSoilTemp$timestamp, "%Y-%m-%d")
 dgSoilTemp$month <- as.numeric(format(dgSoilTemp$dateF,"%m"))
 
+filter(dgSoilTemp, site == "DAVY" & sensorZ == -10 |
+         site == "HDF1" & sensorZ == -9 |
+         site == "LBR" & sensorZ == -18 |
+         site == "LDF2" & sensorZ == -8 |
+         site == "MDF2" & sensorZ == -9 |
+         site == "MDF1" & sensorZ == -6)
+
 
 # Read in Soil Moisture data
 dgSoilMoist <- read.csv("C:\\Users\\brian\\OneDrive\\Documents\\GEOG331\\Project Data\\data\\dg_soil_moisture.csv",
@@ -76,7 +83,22 @@ winterSoilMoist <- winterSoilMoist %>% arrange(year, doy)
 
 #### End Create Winter Data Tables ####
 
-# if the day changes, added summed mean to new data table for that day
-for (i in 1:nrow(winterAirTemp)){
-  
-}
+# Create dataframe containing average WindTemp for every day in winter, separated by site
+WinterDailyAirTempAvg <- aggregate(t_air ~ site + doy + year, data = winterAirTemp, FUN = mean, na.rm = TRUE)
+
+
+# Create dataframe containing average SoilTemp for every day in winter, separated by site
+WinterDailySoilTempAvg <- aggregate(t_soil ~ site + doy + year, 
+                                    data = filter(dgSoilTemp, site == "DAVY" & sensorZ == -10 |
+                                                              site == "HDF1" & sensorZ == -9 |
+                                                              site == "LBR" & sensorZ == -18 |
+                                                              site == "LDF2" & sensorZ == -8 |
+                                                              site == "MDF2" & sensorZ == -9 |
+                                                              site == "MDF1" & sensorZ == -6),
+                                    FUN = mean, na.rm = TRUE)
+
+
+
+
+
+
