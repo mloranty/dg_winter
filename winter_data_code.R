@@ -1,4 +1,6 @@
 library(dplyr)
+library(ggplot2)
+library(lubridate)
 
 
 #### Data Read In ####
@@ -34,6 +36,7 @@ dgSoilTemp <- read.csv("C:\\Users\\brian\\OneDrive\\Documents\\GEOG331\\Project 
 dgSoilTemp$dateF <- as.Date(dgSoilTemp$timestamp, "%Y-%m-%d")
 dgSoilTemp$month <- as.numeric(format(dgSoilTemp$dateF,"%m"))
 
+# filter sensorZ data at sites for appropriate sensor depth
 filter(dgSoilTemp, site == "DAVY" & sensorZ == -10 |
          site == "HDF1" & sensorZ == -9 |
          site == "LBR" & sensorZ == -18 |
@@ -48,6 +51,58 @@ dgSoilMoist <- read.csv("C:\\Users\\brian\\OneDrive\\Documents\\GEOG331\\Project
 # Adds dataF and Month Columns to assist in Sorting by Season
 dgSoilMoist$dateF <- as.Date(dgSoilMoist$timestamp, "%Y-%m-%d")
 dgSoilMoist$month <- as.numeric(format(dgSoilMoist$dateF,"%m"))
+
+
+# Adds Canopy Cover variable for each site to dgAirTemp
+dgAirTemp <- mutate(dgAirTemp, Cover = case_when(
+  site == "DAVY" ~ 71,
+  site == "HDF1" ~ 54,
+  site == "LBR" ~ 29,
+  site == "LDF2" ~ 7,
+  site == "MDF2" ~ 33,
+  site == "MDF1" ~ 28
+))
+
+# Adds Canopy Cover variable for each site to dgRelativeHumid
+dgRelativeHumid<- mutate(dgRelativeHumid, Cover = case_when(
+  site == "DAVY" ~ 71,
+  site == "HDF1" ~ 54,
+  site == "LBR" ~ 29,
+  site == "LDF2" ~ 7,
+  site == "MDF2" ~ 33,
+  site == "MDF1" ~ 28
+))
+
+# Adds Canopy Cover variable for each site to dgPAR
+dgPAR <- mutate(dgPAR, Cover = case_when(
+  site == "DAVY" ~ 71,
+  site == "HDF1" ~ 54,
+  site == "LBR" ~ 29,
+  site == "LDF2" ~ 7,
+  site == "MDF2" ~ 33,
+  site == "MDF1" ~ 28
+))
+
+# Adds Canopy Cover variable for each site to dgSoilTemp
+dgSoilTemp <- mutate(dgSoilTemp, Cover = case_when(
+  site == "DAVY" ~ 71,
+  site == "HDF1" ~ 54,
+  site == "LBR" ~ 29,
+  site == "LDF2" ~ 7,
+  site == "MDF2" ~ 33,
+  site == "MDF1" ~ 28
+))
+
+# Adds Canopy Cover variable for each site to dgSoilMoist
+dgSoilMoist <- mutate(dgSoilMoist, Cover = case_when(
+  site == "DAVY" ~ 71,
+  site == "HDF1" ~ 54,
+  site == "LBR" ~ 29,
+  site == "LDF2" ~ 7,
+  site == "MDF2" ~ 33,
+  site == "MDF1" ~ 28
+))
+
 
 
 #### End Data Read in ####
@@ -84,11 +139,11 @@ winterSoilMoist <- winterSoilMoist %>% arrange(year, doy)
 #### End Create Winter Data Tables ####
 
 # Create dataframe containing average WindTemp for every day in winter, separated by site
-WinterDailyAirTempAvg <- aggregate(t_air ~ site + doy + year, data = winterAirTemp, FUN = mean, na.rm = TRUE)
+winterDailyAirTempAvg <- aggregate(t_air ~ site + dateF, data = winterAirTemp, FUN = mean, na.rm = TRUE)
 
 
 # Create dataframe containing average SoilTemp for every day in winter, separated by site
-WinterDailySoilTempAvg <- aggregate(t_soil ~ site + doy + year, 
+winterDailySoilTempAvg <- aggregate(t_soil ~ site + dateF, 
                                     data = filter(dgSoilTemp, site == "DAVY" & sensorZ == -10 |
                                                               site == "HDF1" & sensorZ == -9 |
                                                               site == "LBR" & sensorZ == -18 |
@@ -97,8 +152,79 @@ WinterDailySoilTempAvg <- aggregate(t_soil ~ site + doy + year,
                                                               site == "MDF1" & sensorZ == -6),
                                     FUN = mean, na.rm = TRUE)
 
+# combine winter air and soil temperatures based on site, doy, and year
+winterDailyTemperatureAvg <- merge(winterDailyAirTempAvg, winterDailySoilTempAvg, by = c("site", "dateF"))
+winterDailyTemperatureAvg$year <- format(winterDailyTemperatureAvg$dateF, format = "%Y")
+winterDailyTemperatureAvg$doy <- yday(winterDailyTemperatureAvg$dateF)
+
+# Create leap year to later help calculate water year
+leap.year<-data.frame(year=seq(2013,2020), leapID=rep(c(0,0,0,1), times=2))
+colnames(leap.year)<-c("year", "leapID")
+
+winterDailyTemperatureAvg$year <- as.integer(winterDailyTemperatureAvg$year)
+
+# add leap year to winterDailyTemperatureAvg
+winterDailyTemperatureAvg <- left_join(winterDailyTemperatureAvg,leap.year,by=c("year"))
+
+# Add water year to help categorize data by water year
+winterDailyTemperatureAvg$wyear<-
+  ifelse(winterDailyTemperatureAvg$leapID == 1 & winterDailyTemperatureAvg$doy <  275,
+         winterDailyTemperatureAvg$year,
+         ifelse(winterDailyTemperatureAvg$leapID == 0 & winterDailyTemperatureAvg$doy < 274,
+                winterDailyTemperatureAvg$year,winterDailyTemperatureAvg$year+1))
 
 
+
+winterDailyTemperatureAvg$wdoy<-ifelse(winterDailyTemperatureAvg$leapID==1&winterDailyTemperatureAvg$doy<=274, winterDailyTemperatureAvg$doy+92,
+                  ifelse(winterDailyTemperatureAvg$leapID==1&winterDailyTemperatureAvg$doy>274, winterDailyTemperatureAvg$doy-274,
+                         ifelse(winterDailyTemperatureAvg$leapID==0&winterDailyTemperatureAvg$doy<=273,winterDailyTemperatureAvg$doy+92,
+                                ifelse(winterDailyTemperatureAvg$leapID==0&winterDailyTemperatureAvg$doy>273,winterDailyTemperatureAvg$doy-273,NA))))
+
+#the .01 is added because day 273 needs to be included in the water year, but if it 
+#is exactly one that bumps it to the first day of the water year.
+winterDailyTemperatureAvg$wdoyP<-ifelse(leap_year(winterDailyTemperatureAvg$wyear)==TRUE, 
+                                        (winterDailyTemperatureAvg$wdoy-1)/366,(winterDailyTemperatureAvg$wdoy-1)/365 )
+
+#now add to the year		
+
+winterDailyTemperatureAvg$decdate<-winterDailyTemperatureAvg$wyear+winterDailyTemperatureAvg$wdoyP
+
+
+
+
+
+# Create and sort subset of winterDailyTemperatureAvg for DAVY site
+DAVYWinterAvg <- winterDailyTemperatureAvg[winterDailyTemperatureAvg$site == "DAVY",]
+DAVYWinterAvg <- DAVYWinterAvg %>% arrange(dateF)
+
+
+colors <- c("Air Temp (2015)" = "firebrick1", "Soil Temp (2015)" = "steelblue1",
+            #"Air Temp (2016)" = "firebrick3", "Soil Temp (2016)" = "steelblue3")
+            "Air Temp (2017)" = "firebrick4", "Soil Temp (2017)" = "steelblue4")
+
+# create plot of Winter Air and Soil temp at DAVY site over all measured years
+ggplot(data = DAVYWinterAvg[DAVYWinterAvg$wyear == "2015",], aes(x=wdoy)) +
+  geom_line(aes(y = DAVYWinterAvg[DAVYWinterAvg$wyear == "2015",]$t_air, color = "Air Temp (2015)")) +
+  geom_line(aes(y = DAVYWinterAvg[DAVYWinterAvg$wyear == "2015",]$t_soil, color = "Soil Temp (2015)"), linetype = "solid") +
+  geom_line(aes(y = DAVYWinterAvg[DAVYWinterAvg$wyear == "2017",]$t_air, color = "Air Temp (2017)")) +
+  geom_line(aes(y = DAVYWinterAvg[DAVYWinterAvg$wyear == "2017",]$t_soil, color = "Soil Temp (2017)")) +
+  labs(x = "Water Year by DOY (DOY 0 = October 1st)",
+  y = "Temperature (C°)",
+  color = "Legend") +
+  scale_color_manual(values = colors) +
+  ggtitle("Average Temperature at DAVY Site")
+  
+
+
+
+
+
+
+
+
+# add legend to clarify which line means what
+
+# Create new variable for day of the season, send an email to lorenty
 
 
 
