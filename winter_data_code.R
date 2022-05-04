@@ -136,7 +136,7 @@ winterSoilMoist <- rbind(subset(dgSoilMoist, dgSoilMoist$month > "9"), subset(dg
 # Sorts winterSoilMoist based on year and doy
 winterSoilMoist <- winterSoilMoist %>% arrange(year, doy)
 
-#### End Create Winter Data Tables ####
+#### Create Winter Temperature Average Data Tables ####
 
 # Create dataframe containing average WindTemp for every day in winter, separated by site
 winterDailyAirTempAvg <- aggregate(t_air ~ site + dateF, data = winterAirTemp, FUN = mean, na.rm = TRUE)
@@ -151,6 +151,8 @@ winterDailySoilTempAvg <- aggregate(t_soil ~ site + dateF,
                                                               site == "MDF2" & sensorZ == -9 |
                                                               site == "MDF1" & sensorZ == -6),
                                     FUN = mean, na.rm = TRUE)
+
+#### Create WinterDailyTemperatureAvg Data Table ####
 
 # combine winter air and soil temperatures based on site, doy, and year
 winterDailyTemperatureAvg <- merge(winterDailyAirTempAvg, winterDailySoilTempAvg, by = c("site", "dateF"))
@@ -174,7 +176,6 @@ winterDailyTemperatureAvg$wyear<-
                 winterDailyTemperatureAvg$year,winterDailyTemperatureAvg$year+1))
 
 
-
 winterDailyTemperatureAvg$wdoy<-ifelse(winterDailyTemperatureAvg$leapID==1&winterDailyTemperatureAvg$doy<=274, winterDailyTemperatureAvg$doy+92,
                   ifelse(winterDailyTemperatureAvg$leapID==1&winterDailyTemperatureAvg$doy>274, winterDailyTemperatureAvg$doy-274,
                          ifelse(winterDailyTemperatureAvg$leapID==0&winterDailyTemperatureAvg$doy<=273,winterDailyTemperatureAvg$doy+92,
@@ -186,8 +187,64 @@ winterDailyTemperatureAvg$wdoyP<-ifelse(leap_year(winterDailyTemperatureAvg$wyea
                                         (winterDailyTemperatureAvg$wdoy-1)/366,(winterDailyTemperatureAvg$wdoy-1)/365 )
 
 #now add to the year		
-
 winterDailyTemperatureAvg$decdate<-winterDailyTemperatureAvg$wyear+winterDailyTemperatureAvg$wdoyP
+
+# Calculate Freezing Degree Days for Air Temp for each water year by site
+winterDailyTemperatureAvg <- merge(winterDailyTemperatureAvg, aggregate(t_air ~ wyear + site, data = winterDailyTemperatureAvg, FUN = sum, subset = t_air <= 0.0, na.rm = TRUE),
+                                  by = c("wyear", "site"))
+
+# Calculate Freezing Degree Days for Soil Temp for each water year by site
+winterDailyTemperatureAvg <- merge(winterDailyTemperatureAvg, aggregate(t_soil ~ wyear + site, data = winterDailyTemperatureAvg, FUN = sum, subset = t_soil <= 0.0, na.rm = TRUE),
+                                  by = c("wyear", "site"))
+
+names(winterDailyTemperatureAvg)[12] <- 'AirFreezeDegreeDaysAvg'
+names(winterDailyTemperatureAvg)[13] <- 'SoilFreezeDegreeDaysAvg'
+
+winterDailyTemperatureAvg$FreezingNFactor <- winterDailyTemperatureAvg$SoilFreezeDegreeDaysAvg/winterDailyTemperatureAvg$AirFreezeDegreeDaysAvg
+
+
+#### Begin Graph Making ####
+
+# Freezing Degree Days N_Factor Comparison
+# Closer to 1, the colder the soil. Closer to 0, the warmer the soil
+nFactors = unique(winterDailyTemperatureAvg[, c("wyear", "site", "AirFreezeDegreeDaysAvg", "SoilFreezeDegreeDaysAvg", "FreezingNFactor")])
+nFactors[nrow(nFactors) + 1,] <- c("2015", "LBR", NA, NA, NA)
+nFactors$AirFreezeDegreeDaysAvg = as.numeric(nFactors$AirFreezeDegreeDaysAvg)
+nFactors$SoilFreezeDegreeDaysAvg = as.numeric(nFactors$SoilFreezeDegreeDaysAvg)
+nFactors$FreezingNFactor = as.numeric(nFactors$FreezingNFactor)
+
+siteColors = c("DAVY" = "darkgreen", "HDF1" = "deepskyblue",
+               "LBR" = "firebrick3", "LDF2" = "gold1",
+               "MDF1" = "darkorchid1", "MDF2" = "darkorange2")
+
+
+#need to fix LBR placement
+
+ggplot(data = nFactors[nFactors$site == "DAVY",], aes(x=wyear, y=FreezingNFactor, group = 1, color = siteColors)) + 
+  geom_line(aes(color = "DAVY")) +
+  geom_line(aes(y = nFactors[nFactors$site == "HDF1",]$FreezingNFactor, color = "HDF1")) +
+  geom_line(aes(y = nFactors[nFactors$site == "LBR",]$FreezingNFactor, color = "LBR"), na.rm = TRUE) +
+  geom_line(aes(y = nFactors[nFactors$site == "LDF2",]$FreezingNFactor, color = "LDF2")) +
+  geom_line(aes(y = nFactors[nFactors$site == "MDF1",]$FreezingNFactor, color = "MDF1")) +
+  geom_line(aes(y = nFactors[nFactors$site == "MDF2",]$FreezingNFactor, color = "MDF2")) +
+  labs(x = "Water Year (DOY 0 = October 1st)",
+       y = "N_Factor (Out of 1)",
+       color = "Legend") +
+  scale_color_manual(values = siteColors) +
+  ggtitle("Freezing Degree Days N_Factor over Water Year from 2015 to 2019") +
+  ylim(0.0, 0.4)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
