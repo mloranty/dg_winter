@@ -236,7 +236,59 @@ winterDailyPARAvg <- merge(winterDailyPARAvg, aggregate(par ~ wyear + site, data
 
 names(winterDailyPARAvg)[11] <- 'PARWaterYearAvg'
 
-winterDailyPARAvg <- subset(winterDailyPARAvg, wyear <= "2019")
+
+
+#### Create PAR boxplot ####
+
+# remove data following 2019 water year
+winterDailyTemperatureAvg <- subset(winterDailyTemperatureAvg, wyear <= "2019")
+
+winterDailyTemperatureAvg$density <- ifelse(grepl("L",winterDailyPARAvg$site),paste("LOW"),
+                                   ifelse(grepl("M",winterDailyPARAvg$site), paste("MED"),
+                                   paste("HIGH")))
+
+PAR.aov <- aov(par.x ~ density, data=winterDailyPARAvg)
+summary(PAR.aov)
+TukeyHSD(PAR.aov)
+
+winterDailyPARAvg$density <- as.character(winterDailyPARAvg$density)
+winterDailyPARAvg$density <- factor(winterDailyPARAvg$density,levels=c("HIGH","MED","LOW"))
+
+# Create box plot for PAR, exclude par values below 10 due to shorter days in the winter
+ggplot(data = subset(winterDailyPARAvg, par.x > 10), aes(x=density,y=par.x,fill=density)) +
+  geom_boxplot() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(),axis.line = element_line(colour = "black"))+
+  xlab("Stand Density") +
+  ylab("Photosynthetically Active Radiation (µmol/(m²·s))") +
+  theme(legend.position = "none")
+
+
+
+#### Create Soil Temp boxplot ####
+
+# remove data following 2019 water year
+winterDailyTempAvgModify <- subset(winterDailyTemperatureAvg, wyear <= "2019")
+
+winterDailyTempAvgModify$density <- ifelse(grepl("L",winterDailyTempAvgModify$site),paste("LOW"),
+                                    ifelse(grepl("M",winterDailyTempAvgModify$site), paste("MED"),
+                                           paste("HIGH")))
+
+SoilTemp.aov <- aov(t_soil.x ~ density, data=winterDailyTempAvgModify)
+summary(SoilTemp.aov)
+TukeyHSD(SoilTemp.aov)
+
+winterDailyTempAvgModify$density <- as.character(winterDailyTempAvgModify$density)
+winterDailyTempAvgModify$density <- factor(winterDailyTempAvgModify$density,levels=c("HIGH","MED","LOW"))
+
+# Create box plot for PAR, exclude par values below 10 due to shorter days in the winter
+ggplot(data = winterDailyTempAvgModify, aes(x=density,y=t_soil.x,fill=density)) +
+  geom_boxplot() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(),axis.line = element_line(colour = "black"))+
+  xlab("Stand Density") +
+  ylab("Temperature (C°)") +
+  theme(legend.position = "none")
+
+
 
 #### Create N Factor Graph ####
 
@@ -247,161 +299,151 @@ nFactors[nrow(nFactors) + 1,] <- c("2015", "LBR", NA, NA, NA)
 nFactors$AirFreezeDegreeDaysAvg = as.numeric(nFactors$AirFreezeDegreeDaysAvg)
 nFactors$SoilFreezeDegreeDaysAvg = as.numeric(nFactors$SoilFreezeDegreeDaysAvg)
 nFactors$FreezingNFactor = as.numeric(nFactors$FreezingNFactor)
+row.names(nFactors) <- 1:nrow(nFactors) 
+
+
+nFactors[c(18,21),"FreezingNFactor"] <- NA
 
 siteColors = c("DAVY" = "darkgreen", "HDF1" = "chartreuse3",
                "MDF1" = "indianred1", "MDF2" = "indianred3",
                "LBR" = "blue", "LDF2" = "cyan4")
 
 
-#need to fix LBR placement
-# Shades of colors to mark vegetation level (Green for high density, orange/red for medium, blue for low)
+plot(x = nFactors[nFactors$site == "HDF1",]$wyear, y = nFactors[nFactors$site == "HDF1",]$FreezingNFactor,type = "b",col = "chartreuse3",
+     xlab = "Water Year (October 1st to April 30th)", ylab = "N Factor (Out of 1)", main = "Freezing Degree Days N Factor by Water Year from 2015 to 2019", ylim=c(0.0,0.45), lwd = 3)
+grid(nx = NA, ny = NULL, lty = 2, lwd = 1, col = "black")
 
-ggplot(data = nFactors[nFactors$site == "DAVY",], aes(x=wyear, y=FreezingNFactor, group = 1, color = siteColors)) + 
-  geom_line(aes(color = "DAVY")) + 
-  geom_point(aes(color = "DAVY")) +
-  geom_line(aes(y = nFactors[nFactors$site == "HDF1",]$FreezingNFactor, color = "HDF1")) + 
-  geom_point(aes(y = nFactors[nFactors$site == "HDF1",]$FreezingNFactor, color = "HDF1")) +
-  geom_line(aes(y = nFactors[nFactors$site == "LBR",]$FreezingNFactor, color = "LBR"), na.rm = TRUE) +
-  geom_point(aes(y = nFactors[nFactors$site == "LBR",]$FreezingNFactor, color = "LBR"), na.rm = TRUE) +
-  geom_line(aes(y = nFactors[nFactors$site == "LDF2",]$FreezingNFactor, color = "LDF2")) +
-  geom_point(aes(y = nFactors[nFactors$site == "LDF2",]$FreezingNFactor, color = "LDF2")) +
-  geom_line(aes(y = nFactors[nFactors$site == "MDF1",]$FreezingNFactor, color = "MDF1")) +
-  geom_point(aes(y = nFactors[nFactors$site == "MDF1",]$FreezingNFactor, color = "MDF1")) +
-  geom_line(aes(y = nFactors[nFactors$site == "MDF2",]$FreezingNFactor, color = "MDF2")) +
-  geom_point(aes(y = nFactors[nFactors$site == "MDF2",]$FreezingNFactor, color = "MDF2")) +
-  labs(x = "Water Year (October 1st to April 30th)",
-       y = "N Factor (Out of 1)",
-       color = "Legend") +
-  scale_color_manual(values = siteColors) +
-  ggtitle("Freezing Degree Days N Factor by Water Year from 2015 to 2019") +
-  ylim(0.0, 0.4)
+lines(x = nFactors[nFactors$site == "DAVY",]$wyear, y = nFactors[nFactors$site == "DAVY",]$FreezingNFactor, type = "b", col = "darkgreen", lwd = 3)
+lines(x = nFactors[nFactors$site == "MDF2",]$wyear, y = nFactors[nFactors$site == "MDF2",]$FreezingNFactor, type = "b", col = "indianred4", lwd = 3)
+lines(x = nFactors[nFactors$site == "LBR",]$wyear, y = nFactors[nFactors$site == "LBR",]$FreezingNFactor, type = "b", col = "blue", lwd = 3)
+lines(x = nFactors[nFactors$site == "MDF1",]$wyear, y = nFactors[nFactors$site == "MDF1",]$FreezingNFactor, type = "b", col = "indianred1", lwd = 3)
+lines(x = nFactors[nFactors$site == "LDF2",]$wyear, y = nFactors[nFactors$site == "LDF2",]$FreezingNFactor, type = "b", col = "cyan4", lwd = 3)
+
+legend("topright", c("DAVY", "HDF1", "MDF1", "MDF2", "LBR", "LDF2"), 
+       lty = c(1,1), lwd = 3, cex=0.6, 
+       col = c("darkgreen", "chartreuse3", "indianred1", "indianred4", "blue", "cyan4"))
 
 
 #### Create Avg PAR by water year graph ####
 
 # Create graph of water year avg PAR at all sites by water year
+# Find a way to drop DAVY, LDF2, and MDF1 for 2018
 
 PARToGraph = unique(winterDailyPARAvg[, c("wyear", "site", "PARWaterYearAvg")])
 PARToGraph[nrow(PARToGraph) + 1,] <- c("2015", "DAVY", NA)
 PARToGraph$PARWaterYearAvg = as.numeric(PARToGraph$PARWaterYearAvg)
+row.names(PARToGraph) <- 1:nrow(PARToGraph) 
 
-ggplot(data = PARToGraph[PARToGraph$site == "HDF1",], aes(x=wyear, y=PARWaterYearAvg, group = 1, color = siteColors)) + 
-  geom_line(aes(color = "HDF1")) + 
-  geom_point(aes(color = "HDF1")) +
-  geom_line(aes(y = PARToGraph[PARToGraph$site == "DAVY",]$PARWaterYearAvg, color = "DAVY"), na.rm = TRUE) + 
-  geom_point(aes(y = PARToGraph[PARToGraph$site == "DAVY",]$PARWaterYearAvg, color = "DAVY"), na.rm = TRUE) +
-  geom_line(aes(y = PARToGraph[PARToGraph$site == "LBR",]$PARWaterYearAvg, color = "LBR")) +
-  geom_point(aes(y = PARToGraph[PARToGraph$site == "LBR",]$PARWaterYearAvg, color = "LBR")) +
-  geom_line(aes(y = PARToGraph[PARToGraph$site == "LDF2",]$PARWaterYearAvg, color = "LDF2")) +
-  geom_point(aes(y = PARToGraph[PARToGraph$site == "LDF2",]$PARWaterYearAvg, color = "LDF2")) +
-  geom_line(aes(y = PARToGraph[PARToGraph$site == "MDF1",]$PARWaterYearAvg, color = "MDF1")) +
-  geom_point(aes(y = PARToGraph[PARToGraph$site == "MDF1",]$PARWaterYearAvg, color = "MDF1")) +
-  geom_line(aes(y = PARToGraph[PARToGraph$site == "MDF2",]$PARWaterYearAvg, color = "MDF2")) +
-  geom_point(aes(y = PARToGraph[PARToGraph$site == "MDF2",]$PARWaterYearAvg, color = "MDF2")) +
-  labs(x = "Water Year (October 1st to April 30th)",
-       y = "N Factor (Out of 1)",
-       color = "Legend") +
-  scale_color_manual(values = siteColors) +
-  ggtitle("Avg PAR by Water Year from 2015 to 2019") +
-  ylim(0.0, 80.0)
+PARToGraph[c(18,21,22),"PARWaterYearAvg"] <- NA
+
+plot(x = PARToGraph[PARToGraph$site == "HDF1",]$wyear, y = PARToGraph[PARToGraph$site == "HDF1",]$PARWaterYearAvg,type = "b",col = "chartreuse3",
+     xlab = "Water Year (October 1st to April 30th)", ylab = "PAR (µmol/(m²·s))", main = "Average PAR by Water Year from 2015 to 2019", ylim=c(0,80), lwd = 3) 
+
+lines(x = PARToGraph[PARToGraph$site == "DAVY",]$wyear, y = PARToGraph[PARToGraph$site == "DAVY",]$PARWaterYearAvg, type = "b", col = "darkgreen", lwd = 3)
+lines(x = PARToGraph[PARToGraph$site == "MDF1",]$wyear, y = PARToGraph[PARToGraph$site == "MDF1",]$PARWaterYearAvg, type = "b", col = "indianred1", lwd = 3)
+lines(x = PARToGraph[PARToGraph$site == "MDF2",]$wyear, y = PARToGraph[PARToGraph$site == "MDF2",]$PARWaterYearAvg, type = "b", col = "indianred4", lwd = 3)
+lines(x = PARToGraph[PARToGraph$site == "LBR",]$wyear, y = PARToGraph[PARToGraph$site == "LBR",]$PARWaterYearAvg, type = "b", col = "blue", lwd = 3)
+lines(x = PARToGraph[PARToGraph$site == "LDF2",]$wyear, y = PARToGraph[PARToGraph$site == "LDF2",]$PARWaterYearAvg, type = "b", col = "cyan4", lwd = 3)
+
+legend("topright", c("DAVY", "HDF1", "MDF1", "MDF2", "LBR", "LDF2"), 
+       lty = c(1,1), lwd = 3, cex=0.8, 
+       col = c("darkgreen", "chartreuse3", "indianred1", "indianred4", "blue", "cyan4"))
 
 
+#### Create DAVY Graphs ####
+# Create and sort subset of winterDailyTemperatureAvg for DAVY site
+DAVYWinterAvg <- winterDailyTemperatureAvg[winterDailyTemperatureAvg$site == "DAVY",]
+DAVYWinterAvg <- DAVYWinterAvg %>% arrange(dateF)
 
-
-
-
-
-#### Create HDF1 Graphs ####
-# Create and sort subset of winterDailyTemperatureAvg for HDF1 site
-HDF1WinterAvg <- winterDailyTemperatureAvg[winterDailyTemperatureAvg$site == "HDF1",]
-HDF1WinterAvg <- HDF1WinterAvg %>% arrange(dateF)
-
-
+# Create colors to use for air and soil temp
 TempColors <- c("Air Temp" = "firebrick1", "Soil Temp" = "steelblue1")
             
 
-# create plot of Winter Air and Soil temp at HDF1 site over 2015 Water Year
-HDF12015 <- ggplot(data = HDF1WinterAvg[HDF1WinterAvg$wyear == "2015",], aes(x=wdoy)) +
-  geom_line(aes(y = HDF1WinterAvg[HDF1WinterAvg$wyear == "2015",]$t_air, color = "Air Temp")) +
-  geom_line(aes(y = HDF1WinterAvg[HDF1WinterAvg$wyear == "2015",]$t_soil, color = "Soil Temp"), linetype = "solid") +
+# create plot of Winter Air and Soil temp at DAVY site over 2015 Water Year
+ggplot(data = DAVYWinterAvg[DAVYWinterAvg$wyear == "2015",], aes(x=wdoy)) +
+  geom_line(aes(y = DAVYWinterAvg[DAVYWinterAvg$wyear == "2015",]$t_air, color = "Air Temp")) +
+  geom_line(aes(y = DAVYWinterAvg[DAVYWinterAvg$wyear == "2015",]$t_soil, color = "Soil Temp"), linetype = "solid") +
   labs(x = "Water Year by DOY (October 1st to April 30th)",
   y = "Temperature (C°)",
   color = "Legend") +
   scale_color_manual(values = TempColors) +
-  ggtitle("Average Daily Temperature at HDF1 Site During 2015 Water Year")
+  ggtitle("Average Daily Temperature at DAVY Site During 2015 Water Year") + ylim(-42.0, 5.0)
   
 
-# create plot of Winter Air and Soil temp at HDF1 site over 2016 Water Year
-HDF12016 <- ggplot(data = HDF1WinterAvg[HDF1WinterAvg$wyear == "2016",], aes(x=wdoy)) +
-  geom_line(aes(y = HDF1WinterAvg[HDF1WinterAvg$wyear == "2016",]$t_air, color = "Air Temp")) +
-  geom_line(aes(y = HDF1WinterAvg[HDF1WinterAvg$wyear == "2016",]$t_soil, color = "Soil Temp"), linetype = "solid") +
+# create plot of Winter Air and Soil temp at DAVY site over 2016 Water Year
+ggplot(data = DAVYWinterAvg[DAVYWinterAvg$wyear == "2016",], aes(x=wdoy)) +
+  geom_line(aes(y = DAVYWinterAvg[DAVYWinterAvg$wyear == "2016",]$t_air, color = "Air Temp")) +
+  geom_line(aes(y = DAVYWinterAvg[DAVYWinterAvg$wyear == "2016",]$t_soil, color = "Soil Temp"), linetype = "solid") +
   labs(x = "Water Year by DOY (October 1st to April 30th)",
        y = "Temperature (C°)",
        color = "Legend") +
   scale_color_manual(values = TempColors) +
-  ggtitle("Average Daily Temperature at HDF1 Site During 2016 Water Year")
+  ggtitle("Average Daily Temperature at DAVY Site During 2016 Water Year") + ylim(-42.0, 5.0)
 
 
-# create plot of Winter Air and Soil temp at HDF1 site over 2017 Water Year
-HDF12017 <- ggplot(data = HDF1WinterAvg[HDF1WinterAvg$wyear == "2017",], aes(x=wdoy)) +
-  geom_line(aes(y = HDF1WinterAvg[HDF1WinterAvg$wyear == "2017",]$t_air, color = "Air Temp")) +
-  geom_line(aes(y = HDF1WinterAvg[HDF1WinterAvg$wyear == "2017",]$t_soil, color = "Soil Temp"), linetype = "solid") +
+# create plot of Winter Air and Soil temp at DAVY site over 2017 Water Year
+ggplot(data = DAVYWinterAvg[DAVYWinterAvg$wyear == "2017",], aes(x=wdoy)) +
+  geom_line(aes(y = DAVYWinterAvg[DAVYWinterAvg$wyear == "2017",]$t_air, color = "Air Temp")) +
+  geom_line(aes(y = DAVYWinterAvg[DAVYWinterAvg$wyear == "2017",]$t_soil, color = "Soil Temp"), linetype = "solid") +
   labs(x = "Water Year by DOY (October 1st to April 30th)",
        y = "Temperature (C°)",
        color = "Legend") +
   scale_color_manual(values = TempColors) +
-  ggtitle("Average Daily Temperature at HDF1 Site During 2017 Water Year")
+  ggtitle("Average Daily Temperature at DAVY Site During 2017 Water Year") + ylim(-42.0, 5.0)
 
 
-# create plot of Winter Air and Soil temp at HDF1 site over 2018 Water Year
-HDF12018 <- ggplot(data = HDF1WinterAvg[HDF1WinterAvg$wyear == "2018",], aes(x=wdoy)) +
-  geom_line(aes(y = HDF1WinterAvg[HDF1WinterAvg$wyear == "2018",]$t_air, color = "Air Temp")) +
-  geom_line(aes(y = HDF1WinterAvg[HDF1WinterAvg$wyear == "2018",]$t_soil, color = "Soil Temp"), linetype = "solid") +
+# create plot of Winter Air and Soil temp at DAVY site over 2018 Water Year
+ggplot(data = DAVYWinterAvg[DAVYWinterAvg$wyear == "2018",], aes(x=wdoy)) +
+  geom_line(aes(y = DAVYWinterAvg[DAVYWinterAvg$wyear == "2018",]$t_air, color = "Air Temp")) +
+  geom_line(aes(y = DAVYWinterAvg[DAVYWinterAvg$wyear == "2018",]$t_soil, color = "Soil Temp"), linetype = "solid") +
   labs(x = "Water Year by DOY (October 1st to April 30th)",
        y = "Temperature (C°)",
        color = "Legend") +
   scale_color_manual(values = TempColors) +
-  ggtitle("Average Daily Temperature at HDF1 Site During 2018 Water Year")
+  ggtitle("Average Daily Temperature at DAVY Site During 2018 Water Year") +
+  xlim(0, 212) + ylim(-42.0, 5.0)
 
 
-# create plot of Winter Air and Soil temp at HDF1 site over 2019 Water Year
-HDF12019 <- ggplot(data = HDF1WinterAvg[HDF1WinterAvg$wyear == "2019",], aes(x=wdoy)) +
-  geom_line(aes(y = HDF1WinterAvg[HDF1WinterAvg$wyear == "2019",]$t_air, color = "Air Temp")) +
-  geom_line(aes(y = HDF1WinterAvg[HDF1WinterAvg$wyear == "2019",]$t_soil, color = "Soil Temp"), linetype = "solid") +
+# create plot of Winter Air and Soil temp at DAVY site over 2019 Water Year
+ggplot(data = DAVYWinterAvg[DAVYWinterAvg$wyear == "2019",], aes(x=wdoy)) +
+  geom_line(aes(y = DAVYWinterAvg[DAVYWinterAvg$wyear == "2019",]$t_air, color = "Air Temp")) +
+  geom_line(aes(y = DAVYWinterAvg[DAVYWinterAvg$wyear == "2019",]$t_soil, color = "Soil Temp"), linetype = "solid") +
   labs(x = "Water Year by DOY (October 1st to April 30th)",
        y = "Temperature (C°)",
        color = "Legend") +
   scale_color_manual(values = TempColors) +
-  ggtitle("Average Daily Temperature at HDF1 Site During 2019 Water Year")
+  ggtitle("Average Daily Temperature at DAVY Site During 2019 Water Year") + ylim(-42.0, 5.0)
 
 
-# Create and sort subset of winterDailyPARAvg for HDF1 site
-HDF1WinterPARAvg <- winterDailyPARAvg[winterDailyPARAvg$site == "HDF1",]
-HDF1WinterPARAvg <- HDF1WinterPARAvg %>% arrange(dateF)
-names(HDF1WinterPARAvg)[4] <- 'PARDailyAvg'
+
+# Create and sort subset of winterDailyPARAvg for DAVY site
+DAVYWinterPARAvg <- winterDailyPARAvg[winterDailyPARAvg$site == "DAVY",]
+DAVYWinterPARAvg <- DAVYWinterPARAvg %>% arrange(dateF)
+names(DAVYWinterPARAvg)[4] <- 'PARDailyAvg'
+
+
+DAVYWinterPARAvg$wyear <- as.numeric(DAVYWinterPARAvg$wyear)
+DAVYWinterPARAvg$wdoy <- as.numeric(DAVYWinterPARAvg$wdoy)
+DAVYWinterPARAvg$PARDailyAvg <- as.numeric(DAVYWinterPARAvg$PARDailyAvg)
 
 # removes final day of 2016 so it can fit on graph
-HDF1WinterPARAvg <- filter(HDF1WinterPARAvg, wdoy != 213)
-
-PARColors = c("2015" = "blue", "2016" = "red",
-               "2017" = "green", "2018" = "purple",
-               "2019" = "goldenrod")
+DAVYWinterPARAvg <- filter(DAVYWinterPARAvg, wdoy != 213)
 
 
-# create plot of all PAR Data for HDF1 site by year
-HDF1PARGraph <- ggplot(data = HDF1WinterPARAvg[HDF1WinterPARAvg$wyear == "2015",], aes(x=wdoy, y = PARDailyAvg, group = 1, color = siteColors)) +
-  geom_line(aes(y = HDF1WinterPARAvg[HDF1WinterPARAvg$wyear == "2015",]$PARDailyAvg, color = "2015")) + 
-  geom_line(aes(y = HDF1WinterPARAvg[HDF1WinterPARAvg$wyear == "2016",]$PARDailyAvg, color = "2016")) +
-  geom_line(aes(y = HDF1WinterPARAvg[HDF1WinterPARAvg$wyear == "2017",]$PARDailyAvg, color = "2017")) +
-  geom_line(aes(y = HDF1WinterPARAvg[HDF1WinterPARAvg$wyear == "2018",]$PARDailyAvg, color = "2018")) +
-  geom_line(aes(y = HDF1WinterPARAvg[HDF1WinterPARAvg$wyear == "2019",]$PARDailyAvg, color = "2019")) +
-  labs(x = "Water Year by DOY (October 1st to April 30th)",
-       y = "PAR (µmol/(m²·s))",
-       color = "Legend") +
-  scale_color_manual(values = PARColors) +
-  ggtitle("Average Daily PAR at HDF1 Site Over the Water Year")
 
-grid.arrange(HDF12015, HDF12016, HDF12017, HDF12018, HDF12019, HDF1PARGraph)
+plot(x = DAVYWinterPARAvg[DAVYWinterPARAvg$wyear == "2016",]$wdoy, y = DAVYWinterPARAvg[DAVYWinterPARAvg$wyear == "2016",]$PARDailyAvg,type = "b",col = "darkgreen",
+     xlab = "Water Year by DOY (October 1st to April 30th)", ylab = "PAR (µmol/(m²·s))", main = "Average Daily PAR at DAVY Site Over the Water Year", lwd = 2, ylim=c(0,475)) 
+
+lines(x = DAVYWinterPARAvg[DAVYWinterPARAvg$wyear == "2017",]$wdoy, y = DAVYWinterPARAvg[DAVYWinterPARAvg$wyear == "2017",]$PARDailyAvg, type = "b", col = "indianred4", lwd = 2)
+lines(x = DAVYWinterPARAvg[DAVYWinterPARAvg$wyear == "2018",]$wdoy, y = DAVYWinterPARAvg[DAVYWinterPARAvg$wyear == "2018",]$PARDailyAvg, type = "b", col = "indianred1", lwd = 2)
+lines(x = DAVYWinterPARAvg[DAVYWinterPARAvg$wyear == "2019",]$wdoy, y = DAVYWinterPARAvg[DAVYWinterPARAvg$wyear == "2019",]$PARDailyAvg, type = "b", col = "blue", lwd = 2)
+
+
+legend("topleft", c("2016", "2017", "2018", "2019"), 
+       lty = c(1,1), lwd = 3, cex=0.8, 
+       col = c("darkgreen", "indianred4", "indianred1", "blue"))
+
+
 
 #### Create LDF2 Graphs ####
 LDF2WinterAvg <- winterDailyTemperatureAvg[winterDailyTemperatureAvg$site == "LDF2",]
@@ -409,40 +451,40 @@ LDF2WinterAvg <- LDF2WinterAvg %>% arrange(dateF)
 
 
 # create plot of Winter Air and Soil temp at LDF2 site over 2015 Water Year
-LDF22015 <- ggplot(data = LDF2WinterAvg[LDF2WinterAvg$wyear == "2015",], aes(x=wdoy)) +
+ggplot(data = LDF2WinterAvg[LDF2WinterAvg$wyear == "2015",], aes(x=wdoy)) +
   geom_line(aes(y = LDF2WinterAvg[LDF2WinterAvg$wyear == "2015",]$t_air, color = "Air Temp")) +
   geom_line(aes(y = LDF2WinterAvg[LDF2WinterAvg$wyear == "2015",]$t_soil, color = "Soil Temp"), linetype = "solid") +
   labs(x = "Water Year by DOY (October 1st to April 30th)",
        y = "Temperature (C°)",
        color = "Legend") +
   scale_color_manual(values = TempColors) +
-  ggtitle("Average Daily Temperature at LDF2 Site During 2015 Water Year")
+  ggtitle("Average Daily Temperature at LDF2 Site During 2015 Water Year") + ylim(-42.0, 5.0)
 
 
 # create plot of Winter Air and Soil temp at LDF2 site over 2016 Water Year
-LDF22016 <- ggplot(data = LDF2WinterAvg[LDF2WinterAvg$wyear == "2016",], aes(x=wdoy)) +
+ggplot(data = LDF2WinterAvg[LDF2WinterAvg$wyear == "2016",], aes(x=wdoy)) +
   geom_line(aes(y = LDF2WinterAvg[LDF2WinterAvg$wyear == "2016",]$t_air, color = "Air Temp")) +
   geom_line(aes(y = LDF2WinterAvg[LDF2WinterAvg$wyear == "2016",]$t_soil, color = "Soil Temp"), linetype = "solid") +
   labs(x = "Water Year by DOY (October 1st to April 30th)",
        y = "Temperature (C°)",
        color = "Legend") +
   scale_color_manual(values = TempColors) +
-  ggtitle("Average Daily Temperature at LDF2 Site During 2016 Water Year")
+  ggtitle("Average Daily Temperature at LDF2 Site During 2016 Water Year") + ylim(-42.0, 5.0)
 
 
 # create plot of Winter Air and Soil temp at LDF2 site over 2017 Water Year
-LDF22017 <- ggplot(data = LDF2WinterAvg[LDF2WinterAvg$wyear == "2017",], aes(x=wdoy)) +
+ggplot(data = LDF2WinterAvg[LDF2WinterAvg$wyear == "2017",], aes(x=wdoy)) +
   geom_line(aes(y = LDF2WinterAvg[LDF2WinterAvg$wyear == "2017",]$t_air, color = "Air Temp")) +
   geom_line(aes(y = LDF2WinterAvg[LDF2WinterAvg$wyear == "2017",]$t_soil, color = "Soil Temp"), linetype = "solid") +
   labs(x = "Water Year by DOY (October 1st to April 30th)",
        y = "Temperature (C°)",
        color = "Legend") +
   scale_color_manual(values = TempColors) +
-  ggtitle("Average Daily Temperature at LDF2 Site During 2017 Water Year")
+  ggtitle("Average Daily Temperature at LDF2 Site During 2017 Water Year") + ylim(-42.0, 5.0)
 
 
 # create plot of Winter Air and Soil temp at LDF2 site over 2018 Water Year
-LDF22018 <- ggplot(data = LDF2WinterAvg[LDF2WinterAvg$wyear == "2018",], aes(x=wdoy)) +
+ggplot(data = LDF2WinterAvg[LDF2WinterAvg$wyear == "2018",], aes(x=wdoy)) +
   geom_line(aes(y = LDF2WinterAvg[LDF2WinterAvg$wyear == "2018",]$t_air, color = "Air Temp")) +
   geom_line(aes(y = LDF2WinterAvg[LDF2WinterAvg$wyear == "2018",]$t_soil, color = "Soil Temp"), linetype = "solid") +
   labs(x = "Water Year by DOY (October 1st to April 30th)",
@@ -450,18 +492,18 @@ LDF22018 <- ggplot(data = LDF2WinterAvg[LDF2WinterAvg$wyear == "2018",], aes(x=w
        color = "Legend") +
   scale_color_manual(values = TempColors) +
   ggtitle("Average Daily Temperature at LDF2 Site During 2018 Water Year")+
-  xlim(0, 212)
+  xlim(0, 212) + ylim(-42.0, 5.0)
 
 
 # create plot of Winter Air and Soil temp at LDF2 site over 2019 Water Year
-LDF22019 <- ggplot(data = LDF2WinterAvg[LDF2WinterAvg$wyear == "2019",], aes(x=wdoy)) +
+ggplot(data = LDF2WinterAvg[LDF2WinterAvg$wyear == "2019",], aes(x=wdoy)) +
   geom_line(aes(y = LDF2WinterAvg[LDF2WinterAvg$wyear == "2019",]$t_air, color = "Air Temp")) +
   geom_line(aes(y = LDF2WinterAvg[LDF2WinterAvg$wyear == "2019",]$t_soil, color = "Soil Temp"), linetype = "solid") +
   labs(x = "Water Year by DOY (October 1st to April 30th)",
        y = "Temperature (C°)",
        color = "Legend") +
   scale_color_manual(values = TempColors) +
-  ggtitle("Average Daily Temperature at LDF2 Site During 2019 Water Year")
+  ggtitle("Average Daily Temperature at LDF2 Site During 2019 Water Year") + ylim(-42.0, 5.0)
 
 
 # Create and sort subset of winterDailyPARAvg for LDF2 site
@@ -477,25 +519,18 @@ LDF2WinterPARAvg$PARDailyAvg <- as.numeric(LDF2WinterPARAvg$PARDailyAvg)
 # removes final day of 2016 so it can fit on graph
 LDF2WinterPARAvg <- filter(LDF2WinterPARAvg, wdoy != 213)
 
-# Add NAs to dataframe so I can graph 2018 data
-for (x in 158:217) {
-  LDF2WinterPARAvg[nrow(LDF2WinterPARAvg) + 1,] <- c("2018", "LDF2", NA, NA, NA, NA, NA, x, NA, NA, NA)
-}
 
 
+plot(x = LDF2WinterPARAvg[LDF2WinterPARAvg$wyear == "2015",]$wdoy, y = LDF2WinterPARAvg[LDF2WinterPARAvg$wyear == "2015",]$PARDailyAvg,type = "b",col = "chartreuse3",
+     xlab = "Water Year by DOY (October 1st to April 30th)", ylab = "PAR (µmol/(m²·s))", main = "Average Daily PAR at LDF2 Site Over the Water Year", lwd = 2, ylim=c(0,475)) 
 
-# create plot of all PAR Data for LDF2 site by year
-LDF2PARGraph <- ggplot(data = LDF2WinterPARAvg[LDF2WinterPARAvg$wyear == "2015",], aes(x=wdoy, y = PARDailyAvg, group = 1, color = PARColors)) +
-  geom_line(aes(y = LDF2WinterPARAvg[LDF2WinterPARAvg$wyear == "2015",]$PARDailyAvg, color = "2015")) + 
-  geom_line(aes(y = LDF2WinterPARAvg[LDF2WinterPARAvg$wyear == "2016",]$PARDailyAvg, color = "2016")) +
-  geom_line(aes(y = LDF2WinterPARAvg[LDF2WinterPARAvg$wyear == "2017",]$PARDailyAvg, color = "2017")) +
-  geom_line(aes(y = LDF2WinterPARAvg[LDF2WinterPARAvg$wyear == "2018",]$PARDailyAvg, color = "2018"), na.rm = TRUE) +
-  geom_line(aes(y = LDF2WinterPARAvg[LDF2WinterPARAvg$wyear == "2019",]$PARDailyAvg, color = "2019")) +
-  labs(x = "Water Year by DOY (October 1st to April 30th)",
-       y = "PAR (µmol/(m²·s))",
-       color = "Legend") +
-  scale_color_manual(values = PARColors) +
-  ggtitle("Average Daily PAR at LDF2 Site Over the Water Year")
+lines(x = LDF2WinterPARAvg[LDF2WinterPARAvg$wyear == "2016",]$wdoy, y = LDF2WinterPARAvg[LDF2WinterPARAvg$wyear == "2016",]$PARDailyAvg, type = "b", col = "darkgreen", lwd = 2)
+lines(x = LDF2WinterPARAvg[LDF2WinterPARAvg$wyear == "2017",]$wdoy, y = LDF2WinterPARAvg[LDF2WinterPARAvg$wyear == "2017",]$PARDailyAvg, type = "b", col = "indianred4", lwd = 2)
+lines(x = LDF2WinterPARAvg[LDF2WinterPARAvg$wyear == "2018",]$wdoy, y = LDF2WinterPARAvg[LDF2WinterPARAvg$wyear == "2018",]$PARDailyAvg, type = "b", col = "blue", lwd = 2)
+lines(x = LDF2WinterPARAvg[LDF2WinterPARAvg$wyear == "2019",]$wdoy, y = LDF2WinterPARAvg[LDF2WinterPARAvg$wyear == "2019",]$PARDailyAvg, type = "b", col = "indianred1", lwd = 2)
 
-grid.arrange(LDF22015, LDF22016, LDF22017, LDF22018, LDF22019, LDF2PARGraph)
+
+legend("topleft", c("2015", "2016", "2017", "2018", "2019"), 
+       lty = c(1,1), lwd = 3, cex=0.8, 
+       col = c("darkgreen", "chartreuse3", "indianred1", "indianred4", "blue"))
 
