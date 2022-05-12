@@ -1,7 +1,6 @@
 library(dplyr)
 library(ggplot2)
 library(lubridate)
-library(gridExtra)
 
 
 
@@ -240,10 +239,7 @@ names(winterDailyPARAvg)[11] <- 'PARWaterYearAvg'
 
 #### Create PAR boxplot ####
 
-# remove data following 2019 water year
-winterDailyTemperatureAvg <- subset(winterDailyTemperatureAvg, wyear <= "2019")
-
-winterDailyTemperatureAvg$density <- ifelse(grepl("L",winterDailyPARAvg$site),paste("LOW"),
+winterDailyPARAvg$density <- ifelse(grepl("L",winterDailyPARAvg$site),paste("LOW"),
                                    ifelse(grepl("M",winterDailyPARAvg$site), paste("MED"),
                                    paste("HIGH")))
 
