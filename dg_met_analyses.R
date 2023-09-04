@@ -48,23 +48,39 @@ nr <- read.csv("https://cn.dataone.org/cn/v2/resolve/urn:uuid:229ad93b-ddfe-4e3f
 # viper soil temp
 tsv <- read.csv("https://cn.dataone.org/cn/v2/resolve/urn:uuid:753917ef-7505-42c0-baa4-a1863cc1077d", sep = ",", header = T)
 
+# last read snowdepth data from Cherskiy met station(s)
+snw <- read.csv("L:/data_repo/field_data/siberia_climate_data/cherskiy_met_1940_2021.csv", sep=",",header = T)
 
-
-
+# aggregate soil and air temperature to daily values
 tsd <- ts %>%
   group_by(year, doy, site, sensorZ) %>%
   summarise(t_soil = mean(t_soil))
 
+tsd$timestamp = as.POSIXct(paste(tsd$year,tsd$doy,sep="-"), format = "%Y-%j")
+
+# aggregate air temperature to daily
+tad <- ta %>%
+  group_by(year, doy, site) %>%
+  summarise(t_air = mean(t_air))
+
+tad$timestamp = as.POSIXct(paste(tad$year,tad$doy,sep="-"), format = "%Y-%j")
 
 # make a few plots to summarize the existing data (and associated gaps)
 #####
 
 
-ggplot(ta, aes(x = timestamp, y = t_air, group = site, color = site)) +
+# time series of all air temperature data
+ggplot(tad, aes(x = timestamp, y = t_air, group = site, color = site)) +
   geom_line() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   scale_x_datetime(labels = label_date("%Y-%m-%d"))
 
+# time series of all soil temperature data
+ggplot(tsd, aes(x = timestamp, y = t_soil, group = site, color = site)) +
+  geom_line() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  scale_x_datetime(labels = label_date("%Y-%m-%d"))
 
-
+# plots of cumulative freezing degree days each winter? 
+# plots of cumulative heat flux each winter? 
 
