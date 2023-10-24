@@ -5,6 +5,7 @@
 # MML 08/22/23
 #-------------------------------------------#
 
+# lorad packages and clean work space
 library(tidyverse)
 library(ggplot2)
 library(patchwork)
@@ -13,7 +14,21 @@ library(scales)
 
 rm(list = ls())
 
+# define functions
+# determine water year from timestamp
+wy <- function(x)
+{
+  #ifelse(is.POSIXct(x),,"Input is not Date/Time class")
+  ifelse(month(x)<10,year(x),year(x)-1)
+}
 
+# calculate water day from timestamp
+wd <- function(x)
+{
+  ifelse(leap_year(x),
+         ifelse(month(x)<10,yday(x)+92,yday(x)+91),
+         ifelse(month(x)<10,yday(x)+91,yday(x)-92))
+}
 # read met data from density gradient from Arctic Data Center
 ######
 # first is a ~7 year data set from 6 different sites https://doi.org/10.18739/A2H12V877
