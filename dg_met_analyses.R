@@ -29,6 +29,13 @@ wd <- function(x)
          ifelse(month(x)<10,yday(x)+92,yday(x)+91),
          ifelse(month(x)<10,yday(x)+91,yday(x)-92))
 }
+
+# freezing degree day
+fdd <- function(x)
+{
+  z <- which(x <0)
+  sum(x[z])
+}
 # read met data from density gradient from Arctic Data Center
 ######
 # first is a ~7 year data set from 6 different sites https://doi.org/10.18739/A2H12V877
@@ -66,6 +73,9 @@ tsv <- read.csv("https://cn.dataone.org/cn/v2/resolve/urn:uuid:753917ef-7505-42c
 # last read snowdepth data from Cherskiy met station(s)
 snw <- read.csv("L:/data_repo/field_data/siberia_climate_data/cherskiy_met_1940_2021.csv", sep=",",header = T)
 
+snw$timestamp = as.POSIXct(snw$DATE, format = "%Y-%m-%d")
+
+snw <- snw[which(year(snw$timestamp) > 2010),]
 # aggregate soil and air temperature to daily values
 tsd <- ts %>%
   group_by(year, doy, site, sensorZ) %>%
@@ -96,6 +106,11 @@ ggplot(tsd, aes(x = timestamp, y = t_soil, group = site, color = site)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   scale_x_datetime(labels = label_date("%Y-%m-%d"))
 
+# timeseries of snow depth data
+ggplot(snw, aes(x = timestamp, y = SNWD)) +
+  geom_line() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  scale_x_datetime(labels = label_date("%Y-%m-%d"))
 # plots of cumulative freezing degree days each winter? 
 # plots of cumulative heat flux each winter? 
 
