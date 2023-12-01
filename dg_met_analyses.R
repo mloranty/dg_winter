@@ -36,6 +36,13 @@ fdd <- function(x)
   z <- which(x <0)
   sum(x[z])
 }
+
+# thawing degree day
+tdd <- function(x)
+{
+  z <- which(x >0)
+  sum(x[z])
+}
 # read met data from density gradient from Arctic Data Center
 ######
 # first is a ~7 year data set from 6 different sites https://doi.org/10.18739/A2H12V877
@@ -88,6 +95,7 @@ snw$SNWD[which(snw$DATE == "2021-09-25")] <- NA
 #subset to incude only data since 2000
 snw2 <- snw[which(year(snw$timestamp) > 2000),]
 
+#-------------------------------------------------------#
 # aggregate soil and air temperature to daily values
 tsd <- ts %>%
   group_by(year, doy, site, sensorZ) %>%
@@ -103,6 +111,7 @@ tsd$wy <- wy(tsd$timestamp)
 tsa <- tsd %>%
   group_by(wy,site,sensorZ) %>%
   summarise(ts.fdd = fdd(t_soil),
+            ts.tdd = tdd(t_soil),
             ts.mean = mean(t_soil),
             ts.obs = length(t_soil ==T))
 
@@ -117,10 +126,11 @@ tad$timestamp = as.POSIXct(paste(tad$year,tad$doy,sep="-"), format = "%Y-%j")
 #add water year
 tad$wy <- wy(tad$timestamp)
 
-#calculate fdd
+#calculate temp vars
 taa <- tad %>%
   group_by(wy,site) %>%
   summarise(ta.fdd = fdd(t_air),
+            ta.tdd = tdd(t_air),
             ta.mean = mean(t_air),
             ta.obs = length(t_air ==T))
 
@@ -138,8 +148,17 @@ tann <- full_join(tsa,taa)
 #calculate freezing n-factor
 tann$nf <- tann$ts.fdd/tann$ta.fdd
 
+# add TDD from previous growing season as a var
+t1 <- select(tann, c(wy,site,sensorZ, ta.tdd, ts.tdd))
+t1$wy <- t1$wy+1
+
+t1 <- rename(t1, ta.tdd1 = ta.tdd, ts.tdd1 = ts.tdd)
+
+
+tann <- left_join(tann,t1)
 #join snow depth data
 tann <- full_join(tann,snwy)
+        
 
 tann.om <- filter(tann, site == "DAVY" & sensorZ == -10 | 
                         site == "HDF1" & sensorZ ==-9 |
@@ -148,6 +167,26 @@ tann.om <- filter(tann, site == "DAVY" & sensorZ == -10 |
                         site == "MDF1" & sensorZ == -6|
                         site == "MDF2" & sensorZ == -9)
 
+# get rid of years with data gaps - doing this manually b/c some gaps still allow analyses of FDD/TDD respectively
+ r <-  which(tann.om$wy ==2014 |
+              tann.om$wy ==2015 & tann.om$site == "LBR" |
+               tann.om$wy == 2018 & tann.om$site == "DAVY" |
+               tann.om$wy == 2018 & tann.om$site == "LDF2" |
+               tann.om$wy == 2018 & tann.om$site == "MDF1" )
+
+tann.om <- tann.om[-r,]
+
+
+# group data by site
+site <- tann.om %>%
+  group_by(site) %>%
+  summarise(ts.fdd = mean(ts.fdd, na.rm = T),
+            ts.tdd = mean(ts.tdd, na.rm = T),
+            ts.mean = mean(ts.mean, na.rm = T),
+            ta.mean = mean(ta.mean, na.rm = T),
+            ta.fdd = mean(ta.fdd, na.rm = T),
+            ta.tdd = mean(ta.tdd, na.rm = T),
+            nf = mean(nf, na.rm = T))
 # make a few plots to summarize the existing data (and associated gaps)
 #####
 
