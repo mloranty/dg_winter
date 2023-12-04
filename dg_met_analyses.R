@@ -34,14 +34,14 @@ wd <- function(x)
 fdd <- function(x)
 {
   z <- which(x <0)
-  sum(x[z])
+  sum(x[z], na.rm = T)
 }
 
 # thawing degree day
 tdd <- function(x)
 {
   z <- which(x >0)
-  sum(x[z])
+  sum(x[z], na.rm = T)
 }
 # read met data from density gradient from Arctic Data Center
 ######
@@ -55,9 +55,23 @@ ta$timestamp <- as.POSIXct(ta$timestamp, format = "%Y-%m-%d %H:%M:%S")
 
 # soil temperature
 ts <- read.csv("https://cn.dataone.org/cn/v2/resolve/urn:uuid:685c49d2-1758-4ad8-bced-c24b02533ccf", sep = ",", header = T)
-as.POSIXct(ts$timestamp, format = "%Y-%m-%d %H:%M:%S")
+ts$timestamp <- as.POSIXct(ts$timestamp, format = "%Y-%m-%d %H:%M:%S")
 
+# filter to include only sensors at Organic-Mineral interface
+tso <- filter(ts, site == "DAVY" & sensorZ == -10 | 
+                    site == "HDF1" & sensorZ ==-9 |
+                    site =="LBR" & sensorZ == -18 |
+                    site =="LDF2" & sensorZ == -8 |
+                    site == "MDF1" & sensorZ == -6|
+                    site == "MDF2" & sensorZ == -9)
 
+# filter to include only sensors in mineral soil
+tsm <- filter(ts, site == "DAVY" & sensorZ == -20 | 
+                site == "HDF1" & sensorZ ==-19 |
+                site =="LBR" & sensorZ == -28 |
+                site =="LDF2" & sensorZ == -18 |
+                site == "MDF1" & sensorZ == -16|
+                site == "MDF2" & sensorZ == -19)
 # soil moisture
 sm <- read.csv("https://cn.dataone.org/cn/v2/resolve/urn:uuid:80cf437a-661b-460e-bc16-187b93c495db", sep = ",", header = T)
 
@@ -92,47 +106,56 @@ snw$SNWD[which(snw$DATE == "2009-11-26")] <- 220
 snw$SNWD[which(snw$DATE == "2019-09-30")] <- 31
 snw$SNWD[which(snw$DATE == "2021-09-25")] <- NA
 
-#subset to incude only data since 2000
-snw2 <- snw[which(year(snw$timestamp) > 2000),]
+#subset to include only data since 2000
+snw2 <- snw[which(year(snw$timestamp) > 2013),]
 
 #-------------------------------------------------------#
-# aggregate soil and air temperature to daily values
-tsd <- ts %>%
+# create consecutive sequence of days over the instrument record
+# missing dates are omitted from published data add these back in for plotting convenience
+d <- as.data.frame(rep(seq(as.Date("2014/1/1"), as.Date("2021/8/31"), "days"),6))
+names(d) <- "timestamp"
+d$site <- rep(unique(tsd$site), each = nrow(d)/6)
+
+# aggregate soil temperature to daily values
+tsd <- tso %>%
   group_by(year, doy, site, sensorZ) %>%
-  summarise(t_soil = mean(t_soil))
+  summarise(t_soil = mean(t_soil)) %>%
+  select(-sensorZ)
 
-# add timestamp
-tsd$timestamp = as.POSIXct(paste(tsd$year,tsd$doy,sep="-"), format = "%Y-%j")
-
-#add water year
-tsd$wy <- wy(tsd$timestamp)
-
-#calculate fdd
-tsa <- tsd %>%
-  group_by(wy,site,sensorZ) %>%
-  summarise(ts.fdd = fdd(t_soil),
-            ts.tdd = tdd(t_soil),
-            ts.mean = mean(t_soil),
-            ts.obs = length(t_soil ==T))
-
-# aggregate air temperature to daily
+# aggregate air temperature to daily values
 tad <- ta %>%
   group_by(year, doy, site) %>%
   summarise(t_air = mean(t_air))
 
 # add timestamp
+tsd$timestamp = as.POSIXct(paste(tsd$year,tsd$doy,sep="-"), format = "%Y-%j")
 tad$timestamp = as.POSIXct(paste(tad$year,tad$doy,sep="-"), format = "%Y-%j")
 
+# add missing dates back in
+tsd <- full_join(tsd,d)
+tad <- full_join(tad,d)
+
 #add water year
+tsd$wy <- wy(tsd$timestamp)
 tad$wy <- wy(tad$timestamp)
 
-#calculate temp vars
+#add daily snow data to soil temp
+tsd <- left_join(tsd,snw2[,c(9,17)])
+#calculate fdd/tdd and related temp vars
+tsa <- tsd %>%
+  group_by(wy,site) %>%
+  summarise(ts.fdd = fdd(t_soil),
+            ts.tdd = tdd(t_soil),
+            ts.mean = mean(t_soil, na.rm = T),
+            ts.obs = length(which(is.na(t_soil)) ==T))
+
 taa <- tad %>%
   group_by(wy,site) %>%
   summarise(ta.fdd = fdd(t_air),
             ta.tdd = tdd(t_air),
             ta.mean = mean(t_air),
-            ta.obs = length(t_air ==T))
+            ta.obs = length(which(is.na(t_soil)) ==T))
+
 
 # summarise annual snow depth by water year
 snwy <- snw2 %>%
@@ -149,7 +172,7 @@ tann <- full_join(tsa,taa)
 tann$nf <- tann$ts.fdd/tann$ta.fdd
 
 # add TDD from previous growing season as a var
-t1 <- select(tann, c(wy,site,sensorZ, ta.tdd, ts.tdd))
+t1 <- select(tann, c(wy,site, ta.tdd, ts.tdd))
 t1$wy <- t1$wy+1
 
 t1 <- rename(t1, ta.tdd1 = ta.tdd, ts.tdd1 = ts.tdd)
@@ -157,28 +180,28 @@ t1 <- rename(t1, ta.tdd1 = ta.tdd, ts.tdd1 = ts.tdd)
 
 tann <- left_join(tann,t1)
 #join snow depth data
-tann <- full_join(tann,snwy)
+tann <- left_join(tann,snwy)
         
 
-tann.om <- filter(tann, site == "DAVY" & sensorZ == -10 | 
-                        site == "HDF1" & sensorZ ==-9 |
-                        site =="LBR" & sensorZ == -18 |
-                        site =="LDF2" & sensorZ == -8 |
-                        site == "MDF1" & sensorZ == -6|
-                        site == "MDF2" & sensorZ == -9)
+# tann.om <- filter(tann, site == "DAVY" & sensorZ == -10 | 
+#                         site == "HDF1" & sensorZ ==-9 |
+#                         site =="LBR" & sensorZ == -18 |
+#                         site =="LDF2" & sensorZ == -8 |
+#                         site == "MDF1" & sensorZ == -6|
+#                         site == "MDF2" & sensorZ == -9)
 
 # get rid of years with data gaps - doing this manually b/c some gaps still allow analyses of FDD/TDD respectively
- r <-  which(tann.om$wy ==2014 |
-              tann.om$wy ==2015 & tann.om$site == "LBR" |
-               tann.om$wy == 2018 & tann.om$site == "DAVY" |
-               tann.om$wy == 2018 & tann.om$site == "LDF2" |
-               tann.om$wy == 2018 & tann.om$site == "MDF1" )
+ r <-  which(tann$wy ==2014 |
+              tann$wy ==2015 & tann$site == "LBR" |
+               tann$wy == 2018 & tann$site == "DAVY" |
+               tann$wy == 2018 & tann$site == "LDF2" |
+               tann$wy == 2018 & tann$site == "MDF1" )
 
-tann.om <- tann.om[-r,]
+tann <- tann[-r,]
 
 
 # group data by site
-site <- tann.om %>%
+site <- tann %>%
   group_by(site) %>%
   summarise(ts.fdd = mean(ts.fdd, na.rm = T),
             ts.tdd = mean(ts.tdd, na.rm = T),
@@ -198,16 +221,36 @@ ggplot(tad, aes(x = timestamp, y = t_air, group = site, color = site)) +
   scale_x_datetime(labels = label_date("%Y-%m-%d"))
 
 # time series of all soil temperature data
-ggplot(tsd, aes(x = timestamp, y = t_soil, group = site, color = site)) +
-  geom_line() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  scale_x_datetime(labels = label_date("%Y-%m-%d"))
+p1 <- ggplot(tsd, aes(x = timestamp, y = t_soil, group = site, color = site)) +
+  geom_line(data = tsd, aes(y = t_soil)) +
+#geom_col(snw2, aes(y = SNWD)) +
+  geom_col(data = snw2, aes(x = timestamp, y = SNWD))
+  scale_y_continuous(name = "Soil Temperature") +
+  scale_colour_discrete(breaks = c("DAVY", "HDF1", "MDF1", "MDF2", "LBR", "LDF2"),
+                        labels = c("H1", "H2", "M1", "M2", "L1", "L2")) +
+  theme_bw() +
+  theme(axis.title.x = element_blank())
+
+
+ggplot() +
+  geom_line(data = tsd, aes(x = timestamp, y = t_soil, group = site, color = site)) + 
+  geom_line(data = snw2, aes(x = timestamp, y = SNWD/75)) +
+  scale_y_continuous(sec.axis = sec_axis(~.*75, name = "Snow Depth (mm)", breaks = seq(0,1000,200))) +
+  labs(y = "Soil Tmperature")  +
+  theme_bw() +
+  theme(axis.title.x = element_blank()) + 
+  scale_colour_discrete(breaks = c("DAVY", "HDF1", "MDF1", "MDF2", "LBR", "LDF2"),
+                      labels = c("H1", "H2", "M1", "M2", "L1", "L2")) +
+  #theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+ # scale_x_datetime(labels = label_date("%Y-%m"))
 
 # timeseries of snow depth data
 ggplot(snw2, aes(x = timestamp, y = SNWD)) +
   geom_line() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  scale_x_datetime(labels = label_date("%Y"))
+  scale_x_datetime(labels = label_date("%Y")) 
+  
 # plots of cumulative freezing degree days each winter? 
 # plots of cumulative heat flux each winter? 
+
 
