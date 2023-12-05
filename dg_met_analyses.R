@@ -47,8 +47,10 @@ tdd <- function(x)
 ######
 # first is a ~7 year data set from 6 different sites https://doi.org/10.18739/A2H12V877
 
-# 
-
+# create a vector of canopy cover values
+cc <- as.data.frame(c(71.24, 54.31, 15.44, 13.66, 28.14, 33.19))
+names(cc) <- ("cc")
+cc$site <- c("DAVY", "HDF1", "LBR","LDF2","MDF1","MDF2")
 # air temperature
 ta <- read.csv("https://cn.dataone.org/cn/v2/resolve/urn:uuid:2008bcf8-f7aa-423b-85df-abec4c15584f", sep = ",", header = T)
 ta$timestamp <- as.POSIXct(ta$timestamp, format = "%Y-%m-%d %H:%M:%S")
@@ -107,7 +109,7 @@ snw$SNWD[which(snw$DATE == "2019-09-30")] <- 31
 snw$SNWD[which(snw$DATE == "2021-09-25")] <- NA
 
 #subset to include only data since 2000
-snw2 <- snw[which(year(snw$timestamp) > 2013),]
+snw2 <- snw[which(snw$wy > 2013 & snw$wy < 2022),]
 
 #-------------------------------------------------------#
 # create consecutive sequence of days over the instrument record
@@ -141,6 +143,10 @@ tad$wy <- wy(tad$timestamp)
 
 #add daily snow data to soil temp
 tsd <- left_join(tsd,snw2[,c(9,17)])
+
+# add canopy cover data
+tsd <- left_join(tsd,cc)
+
 #calculate fdd/tdd and related temp vars
 tsa <- tsd %>%
   group_by(wy,site) %>%
@@ -232,18 +238,43 @@ p1 <- ggplot(tsd, aes(x = timestamp, y = t_soil, group = site, color = site)) +
   theme(axis.title.x = element_blank())
 
 
+# plot soil temp and snow depth, colored by site
 ggplot() +
   geom_line(data = tsd, aes(x = timestamp, y = t_soil, group = site, color = site)) + 
   geom_line(data = snw2, aes(x = timestamp, y = SNWD/75)) +
-  scale_y_continuous(sec.axis = sec_axis(~.*75, name = "Snow Depth (mm)", breaks = seq(0,1000,200))) +
-  labs(y = "Soil Tmperature")  +
+  scale_y_continuous(sec.axis = sec_axis(~.*75, name = "Snow Depth (mm)", breaks = seq(0,1000,200),)) +
+  labs(y = expression(paste("Soil Temperature (", degree,"C)",sep=""))) +
+  labs(color = "Site")  +
   theme_bw() +
-  theme(axis.title.x = element_blank()) + 
   scale_colour_discrete(breaks = c("DAVY", "HDF1", "MDF1", "MDF2", "LBR", "LDF2"),
                       labels = c("H1", "H2", "M1", "M2", "L1", "L2")) +
-  #theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
- # scale_x_datetime(labels = label_date("%Y-%m"))
+  theme(axis.title.x = element_blank(), 
+        axis.title.y.right = element_text(hjust=0.15),
+        legend.position = c(0.05,0.2)) 
 
+
+# plot soil temp and snow depth, colored by canopy cover
+p1 <- ggplot() +
+  geom_line(data = tsd, aes(x = timestamp, y = t_soil, group = site, color = cc)) + 
+#  scale_fill_viridis_d() +
+  scale_color_gradient(low = "tan", high = "darkgreen")  +
+  geom_line(data = snw2, aes(x = timestamp, y = SNWD/75),color = "blue", size = 1) +
+  scale_y_continuous(sec.axis = sec_axis(~.*75, name = "Snow Depth (mm)", breaks = seq(0,1000,200))) +
+  labs(y = expression(paste("Soil Temperature (", degree,"C)",sep=""))) +
+  labs(color = "Canopy\nCover")  +
+  theme_bw() +
+  theme(axis.title.x = element_blank(), 
+        axis.title.y.right = element_text(hjust=0.15, color = "blue"),
+        axis.text.y.right=element_text(color = "blue"),
+        axis.ticks.y.right=element_line(color = "blue"),
+        legend.position = c(0.075,0.2))  
+  
+  
+  
+  
+  
+  
+  
 # timeseries of snow depth data
 ggplot(snw2, aes(x = timestamp, y = SNWD)) +
   geom_line() +
