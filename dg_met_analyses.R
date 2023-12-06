@@ -159,10 +159,10 @@ taa <- tad %>%
   group_by(wy,site) %>%
   summarise(ta.fdd = fdd(t_air),
             ta.tdd = tdd(t_air),
-            ta.mean = mean(t_air),
-            ta.obs = length(which(is.na(t_soil)) ==T))
+            ta.mean = mean(t_air,na.rm = T),
+            ta.obs = length(which(is.na(t_air)) ==T))
 
-
+taa <- na.omit(taa)
 # summarise annual snow depth by water year
 snwy <- snw2 %>%
   group_by(wy) %>%
@@ -201,11 +201,14 @@ tann <- left_join(tann,snwy)
               tann$wy ==2015 & tann$site == "LBR" |
                tann$wy == 2018 & tann$site == "DAVY" |
                tann$wy == 2018 & tann$site == "LDF2" |
-               tann$wy == 2018 & tann$site == "MDF1" )
+               tann$wy == 2018 & tann$site == "MDF1" |
+               tann$wy == 2020 & tann$site == "HDF1" |
+               tann$wy == 2021 & tann$site == "HDF1" )
 
 tann <- tann[-r,]
 
-
+# add canopy cover
+tann <- left_join(tann,cc)
 # group data by site
 site <- tann %>%
   group_by(site) %>%
@@ -216,6 +219,8 @@ site <- tann %>%
             ta.fdd = mean(ta.fdd, na.rm = T),
             ta.tdd = mean(ta.tdd, na.rm = T),
             nf = mean(nf, na.rm = T))
+
+site <- left_join(site,cc)
 # make a few plots to summarize the existing data (and associated gaps)
 #####
 
@@ -225,32 +230,6 @@ ggplot(tad, aes(x = timestamp, y = t_air, group = site, color = site)) +
   geom_line() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   scale_x_datetime(labels = label_date("%Y-%m-%d"))
-
-# time series of all soil temperature data
-p1 <- ggplot(tsd, aes(x = timestamp, y = t_soil, group = site, color = site)) +
-  geom_line(data = tsd, aes(y = t_soil)) +
-#geom_col(snw2, aes(y = SNWD)) +
-  geom_col(data = snw2, aes(x = timestamp, y = SNWD))
-  scale_y_continuous(name = "Soil Temperature") +
-  scale_colour_discrete(breaks = c("DAVY", "HDF1", "MDF1", "MDF2", "LBR", "LDF2"),
-                        labels = c("H1", "H2", "M1", "M2", "L1", "L2")) +
-  theme_bw() +
-  theme(axis.title.x = element_blank())
-
-
-# plot soil temp and snow depth, colored by site
-ggplot() +
-  geom_line(data = tsd, aes(x = timestamp, y = t_soil, group = site, color = site)) + 
-  geom_line(data = snw2, aes(x = timestamp, y = SNWD/75)) +
-  scale_y_continuous(sec.axis = sec_axis(~.*75, name = "Snow Depth (mm)", breaks = seq(0,1000,200),)) +
-  labs(y = expression(paste("Soil Temperature (", degree,"C)",sep=""))) +
-  labs(color = "Site")  +
-  theme_bw() +
-  scale_colour_discrete(breaks = c("DAVY", "HDF1", "MDF1", "MDF2", "LBR", "LDF2"),
-                      labels = c("H1", "H2", "M1", "M2", "L1", "L2")) +
-  theme(axis.title.x = element_blank(), 
-        axis.title.y.right = element_text(hjust=0.15),
-        legend.position = c(0.05,0.2)) 
 
 
 # plot soil temp and snow depth, colored by canopy cover
@@ -262,18 +241,141 @@ p1 <- ggplot() +
   scale_y_continuous(sec.axis = sec_axis(~.*75, name = "Snow Depth (mm)", breaks = seq(0,1000,200))) +
   labs(y = expression(paste("Soil Temperature (", degree,"C)",sep=""))) +
   labs(color = "Canopy\nCover")  +
-  theme_bw() +
+  theme_bw(base_size = 18) +
   theme(axis.title.x = element_blank(), 
         axis.title.y.right = element_text(hjust=0.15, color = "blue"),
         axis.text.y.right=element_text(color = "blue"),
         axis.ticks.y.right=element_line(color = "blue"),
         legend.position = c(0.075,0.2))  
   
+ggsave("figures/dg_tsoil_snow_timeseries.png", plot = p1,
+       width = 10, height = 6, units = "in")  
+  
+
+# plot soil temp colored by canopy cover (no snow depth)
+p2 <- ggplot() +
+  geom_line(data = tsd, aes(x = timestamp, y = t_soil, group = site, color = cc)) + 
+  #  scale_fill_viridis_d() +
+  scale_color_gradient(low = "tan", high = "darkgreen")  +
+  geom_line(data = snw2, aes(x = timestamp, y = SNWD/75),color = "white", size = 0.01) +
+  scale_y_continuous(sec.axis = sec_axis(~.*75, name = "Snow Depth (mm)", breaks = seq(0,1000,200))) +
+  labs(y = expression(paste("Soil Temperature (", degree,"C)",sep=""))) +
+  labs(color = "Canopy\nCover")  +
+  theme_bw(base_size = 18) +
+  theme(axis.title.x = element_blank(), 
+       axis.title.y.right = element_text(hjust=0.15, color = "white"),# easy way to make plots the same size for presenting
+       axis.text.y.right=element_text(color = "white"),
+       axis.ticks.y.right=element_line(color = "white"),
+        legend.position = c(0.075,0.2))  
+
+ggsave("figures/dg_tsoil_timeseries.png", plot = p2,
+       width = 10, height = 6, units = "in")  
+
+# look at TDD vs FDD
+
+p3 <- ggplot() +
+  geom_point(data = tann, aes(x=ts.tdd1, y = -ts.fdd, color = cc, size = 1.25)) +
+  scale_color_gradient(low = "tan", high = "darkgreen") +
+  labs(y = expression(FDD[soil]),
+       x = expression(Previous~Summer~TDD[soil])) +
+  labs(color = "Canopy\nCover")  +
+  theme_bw(base_size = 18) +
+  guides(color = "colorbar", size = "none") +
+  theme(legend.position = c(0.9,0.8)) 
+
+# regression summary to look at relationship between vars
+summary(lm(tann$ts.fdd~tann$ts.tdd1))
+
+# look at TDD vs FDD
+
+p4.reg <- lm(-tann$ts.fdd~tann$ta.tdd1)
+summary(p4.reg)
+coeff<-coefficients(p4.reg)           
+intercept<-coeff[1] 
+slope<- coeff[2] 
+
+p4 <- ggplot() +
+  geom_point(data = tann, aes(x=ta.tdd1, y = -ts.fdd, color = cc, size = 1.25)) +
+  scale_color_gradient(low = "tan", high = "darkgreen") +
+  labs(y = expression(FDD[soil]),
+       x = expression(Previous~Summer~TDD[air])) +
+  labs(color = "Canopy\nCover")  +
+  theme_bw(base_size = 18) +
+  guides(color = "colorbar", size = "none") +
+  geom_abline(intercept = intercept, slope = slope, color="black",  
+                  linetype="dashed", size=1.25)
+  #theme(legend.position = c(0.9,0.8)) 
   
   
+
+  # look at FDD vs FDD
+  d <- na.omit(tann)
+  p5.reg <- lm(d$ts.fdd~d$ta.fdd)
+  summary(p5.reg)
+  coeff<-coefficients(p5.reg)           
+  intercept<- -coeff[1] 
+  slope<- -coeff[2] 
+  
+  p5 <- ggplot() +
+    geom_point(data = tann, aes(x=-ta.fdd, y = -ts.fdd, color = cc, size = 1.25)) +
+    scale_color_gradient(low = "tan", high = "darkgreen") +
+ #   xlim(0,-max(tann$ta.fdd)) +
+    labs(y = expression(FDD[soil]),
+         x = expression(FDD[air])) +
+    labs(color = "Canopy\nCover")  +
+    theme_bw(base_size = 18) +
+    guides(color = "colorbar", size = "none") +
+    geom_abline(intercept = intercept, slope = slope, color="black",  
+                linetype="dashed", size=1.25)
+  #theme(legend.position = c(0.9,0.8)) 
+  
+  summary(lm(tann$ts.fdd~tann$ta.tdd1))
   
   
+  # look at FDD vs Snow Cover
+
+  p6.reg <- lm(-tann$ts.fdd~tann$max)
+  summary(p6.reg)
+  coeff<-coefficients(p6.reg)           
+  intercept<- coeff[1] 
+  slope<- coeff[2] 
   
+  p6 <- ggplot(size=1.25) +
+    geom_point(data = tann, aes(x=max, y = -ts.fdd, color = cc,size=1.25)) +
+    scale_color_gradient(low = "tan", high = "darkgreen") +
+    #   xlim(0,-max(tann$ta.fdd)) +
+    labs(y = expression(FDD[soil]),
+         x = "Maximum Snow Depth (mm)") +
+    labs(color = "Canopy\nCover")  +
+    theme_bw(base_size = 18) +
+    guides(color = "colorbar", size = "none") +
+    geom_abline(intercept = intercept, slope = slope, color="black",  
+                linetype="dashed", size=1.25)
+  
+  
+#fdd vs canopy cover
+  p7.reg <- lm(-tann$ts.fdd~tann$cc)
+  summary(p7.reg)
+  coeff<-coefficients(p6.reg)           
+  intercept<- coeff[1] 
+  slope<- coeff[2] 
+  
+  p7 <- ggplot() +
+    geom_point(data = tann, aes(x=cc, y = -ts.fdd, color = cc,size=1.25)) +
+    scale_color_gradient(low = "tan", high = "darkgreen") +
+    #   xlim(0,-max(tann$ta.fdd)) +
+    labs(y = expression(FDD[soil]),
+         x = "Canopy Cover (%)") +
+    labs(color = "Canopy\nCover")  +
+    theme_bw(base_size = 18) +
+    guides(color = "colorbar", size = "none") +
+    geom_abline(intercept = intercept, slope = slope, color="black",  
+                linetype="dashed", size=1.25)
+  p3+p4+p5+p6
+  
+# junk code I can't part with yet  
+#################################################################
+
   
 # timeseries of snow depth data
 ggplot(snw2, aes(x = timestamp, y = SNWD)) +
@@ -285,3 +387,16 @@ ggplot(snw2, aes(x = timestamp, y = SNWD)) +
 # plots of cumulative heat flux each winter? 
 
 
+# plot soil temp and snow depth, colored by site
+ggplot() +
+  geom_line(data = tsd, aes(x = timestamp, y = t_soil, group = site, color = site)) + 
+  geom_line(data = snw2, aes(x = timestamp, y = SNWD/75)) +
+  scale_y_continuous(sec.axis = sec_axis(~.*75, name = "Snow Depth (mm)", breaks = seq(0,1000,200),)) +
+  labs(y = expression(paste("Soil Temperature (", degree,"C)",sep=""))) +
+  labs(color = "Site")  +
+  theme_bw() +
+  scale_colour_discrete(breaks = c("DAVY", "HDF1", "MDF1", "MDF2", "LBR", "LDF2"),
+                        labels = c("H1", "H2", "M1", "M2", "L1", "L2")) +
+  theme(axis.title.x = element_blank(), 
+        axis.title.y.right = element_text(hjust=0.15),
+        legend.position = c(0.05,0.2)) 
