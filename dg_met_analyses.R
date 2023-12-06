@@ -218,6 +218,8 @@ site <- tann %>%
             ta.mean = mean(ta.mean, na.rm = T),
             ta.fdd = mean(ta.fdd, na.rm = T),
             ta.tdd = mean(ta.tdd, na.rm = T),
+            t5 = mean(t5, na.rm = T),
+            max = mean(max, na.rm = T),
             nf = mean(nf, na.rm = T))
 
 site <- left_join(site,cc)
@@ -277,7 +279,7 @@ p3 <- ggplot() +
   geom_point(data = tann, aes(x=ts.tdd1, y = -ts.fdd, color = cc, size = 1.25)) +
   scale_color_gradient(low = "tan", high = "darkgreen") +
   labs(y = expression(FDD[soil]),
-       x = expression(Previous~Summer~TDD[soil])) +
+       x = expression(Prev~TDD[soil])) +
   labs(color = "Canopy\nCover")  +
   theme_bw(base_size = 18) +
   guides(color = "colorbar", size = "none") +
@@ -298,7 +300,7 @@ p4 <- ggplot() +
   geom_point(data = tann, aes(x=ta.tdd1, y = -ts.fdd, color = cc, size = 1.25)) +
   scale_color_gradient(low = "tan", high = "darkgreen") +
   labs(y = expression(FDD[soil]),
-       x = expression(Previous~Summer~TDD[air])) +
+       x = expression(Prev~TDD[air])) +
   labs(color = "Canopy\nCover")  +
   theme_bw(base_size = 18) +
   guides(color = "colorbar", size = "none") +
@@ -340,12 +342,12 @@ p4 <- ggplot() +
   intercept<- coeff[1] 
   slope<- coeff[2] 
   
-  p6 <- ggplot(size=1.25) +
+  p6 <- ggplot() +
     geom_point(data = tann, aes(x=max, y = -ts.fdd, color = cc,size=1.25)) +
     scale_color_gradient(low = "tan", high = "darkgreen") +
     #   xlim(0,-max(tann$ta.fdd)) +
     labs(y = expression(FDD[soil]),
-         x = "Maximum Snow Depth (mm)") +
+         x = "Max Snow Depth (mm)") +
     labs(color = "Canopy\nCover")  +
     theme_bw(base_size = 18) +
     guides(color = "colorbar", size = "none") +
@@ -371,8 +373,50 @@ p4 <- ggplot() +
     guides(color = "colorbar", size = "none") +
     geom_abline(intercept = intercept, slope = slope, color="black",  
                 linetype="dashed", size=1.25)
-  p3+p4+p5+p6
+# add all these to make a plot and remove legends
+np <- p3+theme(legend.position = "none")+
+      p4+theme(legend.position = "none")+
+      p5+theme(legend.position = "none")+
+      p6+theme(legend.position = "none")+
+      p7+theme(legend.position = c(1.5,0.5))
   
+np + theme(base_size = 14)
+  ggsave("figures/fdd_scatterplots.png", plot = np,
+         width = 10, height = 6, units = "in")  
+
+# multiple regression to look at different variable effects on FDD  
+mr <- lm(ts.fdd~ta.fdd+ta.tdd1+t5+cc-1, data = tann)  
+
+
+### have a look at n-factors
+p8 <- ggplot() +
+  geom_point(data = tann, aes(x=cc, y = nf, color = cc,size=1.25)) +
+  scale_color_gradient(low = "tan", high = "darkgreen") +
+  #   xlim(0,-max(tann$ta.fdd)) +
+  labs(y = " Freezing n-factor",
+       x = "Canopy Cover (%)") +
+  labs(color = "Canopy\nCover")  +
+  theme_bw(base_size = 18) +
+  guides(color = "colorbar", size = "none") 
+
+p9 <- ggplot() +
+  geom_point(data = tann, aes(x=max, y = nf, color = cc,size=1.25)) +
+  scale_color_gradient(low = "tan", high = "darkgreen") +
+  #   xlim(0,-max(tann$ta.fdd)) +
+  labs(y = " Freezing n-factor",
+       x = "Snow Depth (mm)") +
+  labs(color = "Canopy\nCover")  +
+  theme_bw(base_size = 18) +
+  guides(color = "colorbar", size = "none")
+
+np <- p8+theme(legend.position = "none")+ p9
+  p9
+
+#np + theme(base_size = 14)
+ggsave("figures/nf_scatterplots.png", plot = np,
+       width = 12, height = 6, units = "in")  
+
+m2 <- lm(nf~cc+t5, data = tann)
 # junk code I can't part with yet  
 #################################################################
 
