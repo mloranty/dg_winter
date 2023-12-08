@@ -92,7 +92,17 @@ nr <- read.csv("https://cn.dataone.org/cn/v2/resolve/urn:uuid:229ad93b-ddfe-4e3f
 
 # viper soil temp
 tsv <- read.csv("https://cn.dataone.org/cn/v2/resolve/urn:uuid:753917ef-7505-42c0-baa4-a1863cc1077d", sep = ",", header = T)
+# select only sensors at 50cm depth for DAVY and LDF2 sites
+tsv <- tsv[which(tsv$sensorZ==50),]
 
+tsvd <- tsv %>%
+  group_by(year, doy, site) %>%
+  summarise(t_soil = mean(tempS)) 
+
+tsvd$timestamp <- as.POSIXct(paste(tsvd$year,tsvd$doy,sep = "-"),
+                            format = "%Y-%j")
+
+tsvd$wt <- wy(tsvd$timestamp)
 # last read snowdepth data from Cherskiy met station(s) 
 snw <- read.csv("L:/data_repo/field_data/siberia_climate_data/cherskiy_met_1940_2021.csv", sep=",",header = T)
 
@@ -343,11 +353,11 @@ p4 <- ggplot() +
   slope<- coeff[2] 
   
   p6 <- ggplot() +
-    geom_point(data = tann, aes(x=max, y = -ts.fdd, color = cc,size=1.25)) +
+    geom_point(data = tann, aes(x=t5, y = -ts.fdd, color = cc,size=1.25)) +
     scale_color_gradient(low = "tan", high = "darkgreen") +
     #   xlim(0,-max(tann$ta.fdd)) +
     labs(y = expression(FDD[soil]),
-         x = "Max Snow Depth (mm)") +
+         x = "Max Snow (mm)") +
     labs(color = "Canopy\nCover")  +
     theme_bw(base_size = 18) +
     guides(color = "colorbar", size = "none") +
@@ -385,7 +395,7 @@ np + theme(base_size = 14)
          width = 10, height = 6, units = "in")  
 
 # multiple regression to look at different variable effects on FDD  
-mr <- lm(ts.fdd~ta.fdd+ta.tdd1+t5+cc-1, data = tann)  
+mr <- lm(ts.fdd~ta.fdd+ta.tdd1+t5+cc, data = tann)  
 
 
 ### have a look at n-factors
@@ -400,11 +410,11 @@ p8 <- ggplot() +
   guides(color = "colorbar", size = "none") 
 
 p9 <- ggplot() +
-  geom_point(data = tann, aes(x=max, y = nf, color = cc,size=1.25)) +
+  geom_point(data = tann, aes(x=t5, y = nf, color = cc,size=1.25)) +
   scale_color_gradient(low = "tan", high = "darkgreen") +
   #   xlim(0,-max(tann$ta.fdd)) +
   labs(y = " Freezing n-factor",
-       x = "Snow Depth (mm)") +
+       x = "Max Snow Depth (mm)") +
   labs(color = "Canopy\nCover")  +
   theme_bw(base_size = 18) +
   guides(color = "colorbar", size = "none")
@@ -418,6 +428,12 @@ ggsave("figures/nf_scatterplots.png", plot = np,
 
 m2 <- lm(nf~cc+t5, data = tann)
 # junk code I can't part with yet  
+summary(m2)
+### look at deeper temps and soil heat flux from energy balance sites
+p10 <- ggplot() +
+  geom_line(data = tsvd, aes(x = timestamp, y = t_soil, group = site, color = site)) + 
+  #  scale_fill_viridis_d() +
+  scale_color_gradient(low = "tan", high = "darkgreen") 
 #################################################################
 
   
