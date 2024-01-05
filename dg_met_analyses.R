@@ -43,12 +43,17 @@ tdd <- function(x)
   z <- which(x >0)
   sum(x[z], na.rm = T)
 }
+
+se <- function(x)
+{
+  sd(x, na.rm = T)/length(which(is.na(x)==F))
+}
 # read met data from density gradient from Arctic Data Center
 ######
 # first is a ~7 year data set from 6 different sites https://doi.org/10.18739/A2H12V877
 
 # create a vector of canopy cover values
-cc <- as.data.frame(c(71.24, 54.31, 15.44, 13.66, 28.14, 33.19))
+cc <- as.data.frame(c(71.24, 54.31, 28.8, 13.66, 28.14, 33.19))
 names(cc) <- ("cc")
 cc$site <- c("DAVY", "HDF1", "LBR","LDF2","MDF1","MDF2")
 # air temperature
@@ -101,7 +106,7 @@ tsvd <- tsv %>%
 
 tsvd$timestamp <- as.POSIXct(paste(tsvd$year,tsvd$doy,sep = "-"),
                             format = "%Y-%j")
-
+    
 tsvd$wt <- wy(tsvd$timestamp)
 # last read snowdepth data from Cherskiy met station(s) 
 snw <- read.csv("L:/data_repo/field_data/siberia_climate_data/cherskiy_met_1940_2021.csv", sep=",",header = T)
@@ -163,14 +168,14 @@ tsa <- tsd %>%
   summarise(ts.fdd = fdd(t_soil),
             ts.tdd = tdd(t_soil),
             ts.mean = mean(t_soil, na.rm = T),
-            ts.obs = length(which(is.na(t_soil)) ==T))
+            ts.obs = length(which(is.na(t_soil)) ==F))
 
 taa <- tad %>%
   group_by(wy,site) %>%
   summarise(ta.fdd = fdd(t_air),
             ta.tdd = tdd(t_air),
             ta.mean = mean(t_air,na.rm = T),
-            ta.obs = length(which(is.na(t_air)) ==T))
+            ta.obs = length(which(is.na(t_air)) ==F))
 
 taa <- na.omit(taa)
 # summarise annual snow depth by water year
@@ -223,7 +228,9 @@ tann <- left_join(tann,cc)
 site <- tann %>%
   group_by(site) %>%
   summarise(ts.fdd = mean(ts.fdd, na.rm = T),
+            ts.fddse = sd(ts.fdd,na.rm = T), # this is not working, unsure why
             ts.tdd = mean(ts.tdd, na.rm = T),
+            ts.tddse = sd(ts.tdd, na.rm = T),
             ts.mean = mean(ts.mean, na.rm = T),
             ta.mean = mean(ta.mean, na.rm = T),
             ta.fdd = mean(ta.fdd, na.rm = T),
@@ -368,7 +375,7 @@ p4 <- ggplot() +
 #fdd vs canopy cover
   p7.reg <- lm(-tann$ts.fdd~tann$cc)
   summary(p7.reg)
-  coeff<-coefficients(p6.reg)           
+  coeff<-coefficients(p7.reg)           
   intercept<- coeff[1] 
   slope<- coeff[2] 
   
@@ -420,12 +427,14 @@ p9 <- ggplot() +
   guides(color = "colorbar", size = "none")
 
 np <- p8+theme(legend.position = "none")+ p9
-  p9
+np + theme(base_size = 14)
 
 #np + theme(base_size = 14)
 ggsave("figures/nf_scatterplots.png", plot = np,
-       width = 12, height = 6, units = "in")  
+       width = 13, height = 6, units = "in")  
 
+ggsave("figures/nf_scatterplot.png", plot = p9,
+       width = 7, height = 6, units = "in") 
 m2 <- lm(nf~cc+t5, data = tann)
 # junk code I can't part with yet  
 summary(m2)
@@ -460,3 +469,10 @@ ggplot() +
   theme(axis.title.x = element_blank(), 
         axis.title.y.right = element_text(hjust=0.15),
         legend.position = c(0.05,0.2)) 
+
+
+yr <- tann %>%
+  group_by(wy) %>%
+  summarise(nfr = max(nf, na.rm = T)-min(nf,na.rm=T),
+            t5 = mean(t5, na.rm = T),
+            max = mean(max, na.rm = T))
