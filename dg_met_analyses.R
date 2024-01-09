@@ -203,6 +203,9 @@ tann <- left_join(tann,t1)
 #join snow depth data
 tann <- left_join(tann,snwy)
         
+# write the full table to csv file for a supplemental table
+write.csv(tann, file = "tables/table_s1_site_years.csv",
+          row.names = F)
 
 # tann.om <- filter(tann, site == "DAVY" & sensorZ == -10 | 
 #                         site == "HDF1" & sensorZ ==-9 |
