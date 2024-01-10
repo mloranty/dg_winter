@@ -243,6 +243,8 @@ site <- tann %>%
             nf = mean(nf, na.rm = T))
 
 site <- left_join(site,cc)
+
+
 # make a few plots to summarize the existing data (and associated gaps)
 #####
 
@@ -253,7 +255,9 @@ ggplot(tad, aes(x = timestamp, y = t_air, group = site, color = site)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   scale_x_datetime(labels = label_date("%Y-%m-%d"))
 
-
+#-------------------------------------------------#
+## FIGURE 1 - FOR ERL MANUSCRIPT ##
+#-------------------------------------------------#
 # plot soil temp and snow depth, colored by canopy cover
 p1 <- ggplot() +
   geom_line(data = tsd, aes(x = timestamp, y = t_soil, group = site, color = cc)) + 
@@ -293,8 +297,17 @@ p2 <- ggplot() +
 ggsave("figures/dg_tsoil_timeseries.png", plot = p2,
        width = 10, height = 6, units = "in")  
 
-# look at TDD vs FDD
+#--------------------------------------------------#
+## FIGURE 2 - FDD SCATTERPLOTS AND REGRESSION TABLE
+####################################################
 
+# Soil FDD vs. previous season Soil TDD
+
+# regression summary to look at relationship between vars
+p3r <- lm(-tann$ts.fdd~tann$ts.tdd1)
+p3rs <- summary(p3r)
+
+# create scatter plot
 p3 <- ggplot() +
   geom_point(data = tann, aes(x=ts.tdd1, y = -ts.fdd, color = cc, size = 1.25)) +
   scale_color_gradient(low = "tan", high = "darkgreen") +
@@ -305,17 +318,12 @@ p3 <- ggplot() +
   guides(color = "colorbar", size = "none") +
   theme(legend.position = c(0.9,0.8)) 
 
-# regression summary to look at relationship between vars
-summary(lm(tann$ts.fdd~tann$ts.tdd1))
 
-# look at TDD vs FDD
+# Soil FDD vs. previous season Air TDD
+p4r <- lm(-tann$ts.fdd~tann$ta.tdd1)
+p4rs <- summary(p4r)
 
-p4.reg <- lm(-tann$ts.fdd~tann$ta.tdd1)
-summary(p4.reg)
-coeff<-coefficients(p4.reg)           
-intercept<-coeff[1] 
-slope<- coeff[2] 
-
+# create scatter plot
 p4 <- ggplot() +
   geom_point(data = tann, aes(x=ta.tdd1, y = -ts.fdd, color = cc, size = 1.25)) +
   scale_color_gradient(low = "tan", high = "darkgreen") +
@@ -324,75 +332,72 @@ p4 <- ggplot() +
   labs(color = "Canopy\nCover")  +
   theme_bw(base_size = 18) +
   guides(color = "colorbar", size = "none") +
-  geom_abline(intercept = intercept, slope = slope, color="black",  
-                  linetype="dashed", size=1.25)
+#  geom_abline(intercept = intercept, slope = slope, color="black",  
+#                  linetype="dashed", size=1.25)
   #theme(legend.position = c(0.9,0.8)) 
   
   
+# Soil FDD vs. Air FDD
 
-  # look at FDD vs FDD
-  d <- na.omit(tann)
-  p5.reg <- lm(d$ts.fdd~d$ta.fdd)
-  summary(p5.reg)
-  coeff<-coefficients(p5.reg)           
-  intercept<- -coeff[1] 
-  slope<- -coeff[2] 
-  
-  p5 <- ggplot() +
-    geom_point(data = tann, aes(x=-ta.fdd, y = -ts.fdd, color = cc, size = 1.25)) +
-    scale_color_gradient(low = "tan", high = "darkgreen") +
+# get rid of sites years with missing Air FDD due to sensor outages
+d <- na.omit(tann)
+p5r <- lm(d$ts.fdd~d$ta.fdd)
+p5rs <-   summary(p5r)
+
+# create scatter plot  
+p5 <- ggplot() +
+  geom_point(data = tann, aes(x=-ta.fdd, y = -ts.fdd, color = cc, size = 1.25)) +
+  scale_color_gradient(low = "tan", high = "darkgreen") +
  #   xlim(0,-max(tann$ta.fdd)) +
-    labs(y = expression(FDD[soil]),
-         x = expression(FDD[air])) +
-    labs(color = "Canopy\nCover")  +
-    theme_bw(base_size = 18) +
-    guides(color = "colorbar", size = "none") +
-    geom_abline(intercept = intercept, slope = slope, color="black",  
-                linetype="dashed", size=1.25)
+  labs(y = expression(FDD[soil]),
+       x = expression(FDD[air])) +
+  labs(color = "Canopy\nCover")  +
+  theme_bw(base_size = 18) +
+  guides(color = "colorbar", size = "none") +
+  #geom_abline(intercept = intercept, slope = slope, color="black",  
+  #             linetype="dashed", size=1.25)
   #theme(legend.position = c(0.9,0.8)) 
   
   summary(lm(tann$ts.fdd~tann$ta.tdd1))
   
   
-  # look at FDD vs Snow Cover
+# Soil FDD vs. Snow Depth
 
-  p6.reg <- lm(-tann$ts.fdd~tann$max)
-  summary(p6.reg)
-  coeff<-coefficients(p6.reg)           
-  intercept<- coeff[1] 
-  slope<- coeff[2] 
+p6r <- lm(-tann$ts.fdd~tann$t5)
+p6rs <- summary(p6r)
+ 
   
-  p6 <- ggplot() +
-    geom_point(data = tann, aes(x=t5, y = -ts.fdd, color = cc,size=1.25)) +
-    scale_color_gradient(low = "tan", high = "darkgreen") +
+p6 <- ggplot() +
+  geom_point(data = tann, aes(x=t5, y = -ts.fdd, color = cc,size=1.25)) +
+  scale_color_gradient(low = "tan", high = "darkgreen") +
     #   xlim(0,-max(tann$ta.fdd)) +
-    labs(y = expression(FDD[soil]),
-         x = "Max Snow (mm)") +
-    labs(color = "Canopy\nCover")  +
-    theme_bw(base_size = 18) +
-    guides(color = "colorbar", size = "none") +
-    geom_abline(intercept = intercept, slope = slope, color="black",  
-                linetype="dashed", size=1.25)
+  labs(y = expression(FDD[soil]),
+       x = "Max Snow (mm)") +
+  labs(color = "Canopy\nCover")  +
+  theme_bw(base_size = 18) +
+  guides(color = "colorbar", size = "none") +
+#  geom_abline(intercept = intercept, slope = slope, color="black",  
+#              linetype="dashed", size=1.25)
   
   
-#fdd vs canopy cover
-  p7.reg <- lm(-tann$ts.fdd~tann$cc)
-  summary(p7.reg)
-  coeff<-coefficients(p7.reg)           
-  intercept<- coeff[1] 
-  slope<- coeff[2] 
+  # Soil FDD vs. Canopy Cover
+p7r <- lm(-tann$ts.fdd~tann$cc)
+p7rs <-  summary(p7r)
+
   
-  p7 <- ggplot() +
-    geom_point(data = tann, aes(x=cc, y = -ts.fdd, color = cc,size=1.25)) +
-    scale_color_gradient(low = "tan", high = "darkgreen") +
+p7 <- ggplot() +
+  geom_point(data = tann, aes(x=cc, y = -ts.fdd, color = cc,size=1.25)) +
+  scale_color_gradient(low = "tan", high = "darkgreen") +
     #   xlim(0,-max(tann$ta.fdd)) +
-    labs(y = expression(FDD[soil]),
-         x = "Canopy Cover (%)") +
-    labs(color = "Canopy\nCover")  +
-    theme_bw(base_size = 18) +
-    guides(color = "colorbar", size = "none") +
-    geom_abline(intercept = intercept, slope = slope, color="black",  
-                linetype="dashed", size=1.25)
+  labs(y = expression(FDD[soil]),
+       x = "Canopy Cover (%)") +
+  labs(color = "Canopy\nCover")  +
+  theme_bw(base_size = 18) +
+  guides(color = "colorbar", size = "none") +
+#  geom_abline(intercept = intercept, slope = slope, color="black",  
+#              linetype="dashed", size=1.25)
+  
+# CREATE A MULTI-PANEL FIGURE  
 # add all these to make a plot and remove legends
 np <- p3+theme(legend.position = "none")+
       p4+theme(legend.position = "none")+
@@ -404,6 +409,29 @@ np + theme(base_size = 14)
   ggsave("figures/fdd_scatterplots.png", plot = np,
          width = 10, height = 6, units = "in")  
 
+# CREATE A TABLE SUMMARIZING THE REGRESSIONS#
+  
+rtab <- as.data.frame(cbind(c("TDDsoil", "TDDair","FDDair","Snow Depth", "CC"),
+                            c(p3rs$coefficients[2,1],p4rs$coefficients[2,1],p5rs$coefficients[2,1],p6rs$coefficients[2,1],p7rs$coefficients[2,1]),
+                            c(p3rs$adj.r.squared,p4rs$adj.r.squared,p5rs$adj.r.squared,p6rs$adj.r.squared,p7rs$adj.r.squared),
+                            c(p3rs$coefficients[2,4],p4rs$coefficients[2,4],p5rs$coefficients[2,4],p6rs$coefficients[2,4],p7rs$coefficients[2,4])
+                            ))
+
+# add column names
+colnames(rtab) <- c("Variable","Slope", "Adj R2", "p value")
+
+# write a csv file
+write.csv(rtab, file = "tables/fdd_regression_table.csv")
+
+#------  ------#
+# END Figure 2
+################
+  
+#--------------------------------------------------#
+## FIGURE 2 - FDD SCATTERPLOTS AND REGRESSION TABLE
+####################################################
+  
+#-------------------------------------------------#    
 # multiple regression to look at different variable effects on FDD  
 mr <- lm(ts.fdd~ta.fdd+ta.tdd1+t5+cc, data = tann)  
 
