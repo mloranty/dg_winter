@@ -1,0 +1,6 @@
+"","Model","DF","Adj R2","AICc"
+"1","fdd~FDDair, TDDair, Snow Depth, Canopy Cover","21","0.837142156130299","362.251644422291"
+"2","fdd~FDDair,Snow Depth, Canopy Cover","27","0.825758730778332","427.419495622693"
+"3","fdd~Snow Depth, Canopy Cover","33","0.722393172492797","507.600670996393"
+"4","nf~TDDair, Snow Depth, Canopy Cover","22","0.788868286769519","-77.7879936735149"
+"5","nf~Snow Depth, Canopy Cover","28","0.744134779505369","-91.7190739646061"
