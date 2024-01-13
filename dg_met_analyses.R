@@ -278,7 +278,33 @@ p1 <- ggplot() +
 ggsave("figures/dg_tsoil_snow_timeseries.png", plot = p1,
        width = 10, height = 6, units = "in")  
   
+#--------------------------------------------------#
+## FIGURE 3 - FDD SCATTERPLOTS AND REGRESSION TABLE
+#-------------------------------------------------#
+####################################################
+# Soil FDD vs. MAST
 
+# regression summary to look at relationship between vars
+p2r <- lm(tann$ts.mean~abs(tann$ts.fdd), na.action = na.omit)
+p2rs <- summary(p2r)
+int <- p2rs$coefficients[1,1]
+slp <- p2rs$coefficients[2,1]
+
+# create scatter plot
+p2 <- ggplot() +
+  geom_point(data = tann, aes(x=-ts.fdd, y = ts.mean, color = cc, size = 1.25)) +
+  scale_color_gradient(low = "tan", high = "darkgreen") +
+  labs(y = expression(paste("MAST (", degree,"C)",sep="")),
+       x = expression(FDD[soil])) +
+  labs(color = "Canopy\nCover")  +
+  theme_bw(base_size = 18) +
+  guides(color = "colorbar", size = "none") +
+  geom_abline(intercept = int, slope = slp, color="black",  
+              linetype="dashed", size=1.25) +
+  theme(legend.position = c(0.15,0.25)) 
+
+ggsave("figures/fdd_mast.png", plot = p2,
+       width = 6, height = 6, units = "in")  
 #--------------------------------------------------#
 ## FIGURE 3 - FDD SCATTERPLOTS AND REGRESSION TABLE
 #-------------------------------------------------#
