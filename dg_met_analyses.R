@@ -108,7 +108,11 @@ tsvd <- tsv %>%
 tsvd$timestamp <- as.POSIXct(paste(tsvd$year,tsvd$doy,sep = "-"),
                             format = "%Y-%j")
     
-tsvd$wt <- wy(tsvd$timestamp)
+tsvd$wy <- wy(tsvd$timestamp)
+
+tsv.fdd <- tsvd %>%
+  group_by(site, wy) %>%
+  summarise(fdd = fdd(t_soil))
 # last read snowdepth data from Cherskiy met station(s) 
 snw <- read.csv("data/cherskiy_met_1940_2022.csv", sep=",",header = T)
 
