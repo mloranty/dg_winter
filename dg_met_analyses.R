@@ -5,7 +5,7 @@
 # MML 08/22/23
 #-------------------------------------------#
 
-# lorad packages and clean work space
+# load packages and clean work space
 library(tidyverse)
 library(ggplot2)
 library(patchwork)
@@ -545,7 +545,15 @@ p10 <- ggplot() +
   scale_color_gradient(low = "tan", high = "darkgreen") 
 #################################################################
 
-  
+#exploratory analyses of mixed effect model
+tann.m <- tann
+tann.m$sf <- as.factor(tann$site)
+tann.m$yf <- as.factor(tann$wy)
+m0 <- lmer(nf~cc+t5+(1|yf)+(1|site), data = tann.m)
+m1 <- lmer(nf~cc+(cc|site), data = tann.m)  
+m2 <- lmer(nf~t5+(t5|yf), data = tann.m) 
+m3 <- lmer(nf~t5+cc+(1|site), data = tann.m) 
+
 # timeseries of snow depth data
 ggplot(snw2, aes(x = timestamp, y = SNWD)) +
   geom_line() +
