@@ -24,12 +24,12 @@ wy <- function(x)
 }
 
 # calculate water day from timestamp
-wd <- function(x)
-{
-  ifelse(leap_year(x),
-         ifelse(month(x)<10,yday(x)+92,yday(x)+91),
-         ifelse(month(x)<10,yday(x)+91,yday(x)-92))
-}
+# wd <- function(x)
+# {
+#   ifelse(leap_year(x),
+#          ifelse(month(x)<10,yday(x)+92,yday(x)+91),
+#          ifelse(month(x)<10,yday(x)+92,yday(x)-92))
+# }
 
 # freezing degree day
 fdd <- function(x)
